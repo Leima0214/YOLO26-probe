@@ -1,7 +1,7 @@
-import torch
 import torch.nn as nn
-from ultralytics import YOLO
 from tabulate import tabulate
+
+from ultralytics import YOLO
 
 
 def print_model_structure(model, prefix="", show_all=False):
@@ -54,12 +54,7 @@ def print_model_structure(model, prefix="", show_all=False):
         info_str = ", ".join([p for p in info_parts if p])
 
         if show_all or param_count > 0 or info_str or isinstance(module, (nn.ModuleList, nn.Sequential, nn.ModuleDict)):
-            lines.append({
-                "Layer": full_name,
-                "Type": module_type,
-                "Params": f"{param_count:,}",
-                "Info": info_str
-            })
+            lines.append({"Layer": full_name, "Type": module_type, "Params": f"{param_count:,}", "Info": info_str})
 
         if list(module.children()):
             sub_lines, sub_params = print_model_structure(module, f"{full_name}.", show_all)
@@ -80,12 +75,7 @@ def print_detailed_structure(model):
     table_data = []
 
     for line in lines:
-        table_data.append([
-            line["Layer"],
-            line["Type"],
-            line["Params"],
-            line["Info"]
-        ])
+        table_data.append([line["Layer"], line["Type"], line["Params"], line["Info"]])
 
     print(tabulate(table_data, headers=table_headers, tablefmt="grid"))
     print("-" * 120)
@@ -125,12 +115,7 @@ def print_compact_structure(model):
     table_data = []
 
     for line in param_lines:
-        table_data.append([
-            line["Layer"],
-            line["Type"],
-            line["Params"],
-            line["Info"]
-        ])
+        table_data.append([line["Layer"], line["Type"], line["Params"], line["Info"]])
 
     print(tabulate(table_data, headers=table_headers, tablefmt="grid"))
     print("-" * 100)
@@ -162,7 +147,7 @@ def print_compact_structure(model):
 
 
 model = YOLO("ultralytics/cfg/models//26/yolo26-BoTNet.yaml")
-target_model = model.model if hasattr(model, 'model') else model
+target_model = model.model if hasattr(model, "model") else model
 
 print("\n" + "=" * 120)
 print(f"Model: {target_model.__class__.__name__}")
