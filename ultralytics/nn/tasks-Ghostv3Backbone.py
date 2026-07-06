@@ -6,11 +6,30 @@ import re
 import types
 from copy import deepcopy
 from pathlib import Path
-#详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽 
+
+# 详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽
 import thop
 import torch
 import torch.nn as nn
 
+from ultralytics.nn.AIxueshujiaojiaoshou import *
+from ultralytics.nn.AKConv import AKConv
+from ultralytics.nn.BiFormer import Attention, AttentionLePE, BiLevelRoutingAttention
+from ultralytics.nn.BoTNet import BoTNet
+from ultralytics.nn.C2f_Faster import C2f_Faster, C3_Faster
+from ultralytics.nn.CAFMAttention import CAFMAttention
+from ultralytics.nn.CBAM import CBAM
+from ultralytics.nn.ContextAggregation import ContextAggregation
+from ultralytics.nn.DE import DEA, C2f_BiFocus
+from ultralytics.nn.DSConv import C2f_DySnakeConv
+from ultralytics.nn.EfficientNetv2 import FusedMBConv, MBConv, stem
+from ultralytics.nn.EMA_attention import EMA_attention
+from ultralytics.nn.Ghostv3 import *
+from ultralytics.nn.HorBlock import HorBlock
+from ultralytics.nn.Involution import Involution
+from ultralytics.nn.JJSConv import BDSConv
+from ultralytics.nn.LDConv import LDConv
+from ultralytics.nn.MobileOne import MobileOneBlock
 from ultralytics.nn.modules import (
     AIFI,
     C1,
@@ -24,6 +43,7 @@ from ultralytics.nn.modules import (
     SPP,
     SPPELAN,
     SPPF,
+    A2C2f,
     AConv,
     ADown,
     Bottleneck,
@@ -34,25 +54,30 @@ from ultralytics.nn.modules import (
     C2fPSA,
     C3Ghost,
     C3k2,
-    C3x,LightConv,
+    C3x,
     CBFuse,
     CBLinear,
     Classify,
     Concat,
     Conv,
     Conv2,
-    DSConv,
     ConvTranspose,
     Detect,
+    DownsampleConv,
+    DSC3k2,
+    DSConv,
     DWConv,
     DWConvTranspose2d,
     Focus,
+    FullPAD_Tunnel,
     GhostBottleneck,
     GhostConv,
     HGBlock,
     HGStem,
+    HyperACE,
     ImagePoolingAttn,
     Index,
+    LightConv,
     Pose,
     RepC3,
     RepConv,
@@ -65,26 +90,20 @@ from ultralytics.nn.modules import (
     TorchVision,
     WorldDetect,
     v10Detect,
-    A2C2f,
-    HyperACE,
-    DownsampleConv,
-    FullPAD_Tunnel,
-    DSC3k2
 )
-from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
-from ultralytics.nn.BiFormer import BiLevelRoutingAttention,Attention,AttentionLePE
-from ultralytics.nn.ContextAggregation import ContextAggregation
-from ultralytics.nn. HorBlock import HorBlock
 from ultralytics.nn.ODConv import ODConv
-from ultralytics.nn.RepViTblock import RepViTblock
-from ultralytics.nn. RepLKNet import RepLKNet_Stem, RepLKNet_stage1, RepLKNet_stage2, RepLKNet_stage3, RepLKNet_stage4
+from ultralytics.nn.orepa import OREPA
+from ultralytics.nn.PatchExpand import PatchExpand
 from ultralytics.nn.RepConv import RepConv
-from ultralytics.nn.StokenAttention import StokenAttention
+from ultralytics.nn.RepLKNet import RepLKNet_stage1, RepLKNet_stage2, RepLKNet_stage3, RepLKNet_stage4, RepLKNet_Stem
+from ultralytics.nn.RepViTblock import RepViTblock
+from ultralytics.nn.se import SEAttention
 from ultralytics.nn.spdconv import space_to_depth
-from ultralytics.nn. JJSConv import BDSConv
-from ultralytics.nn. MobileOne import MobileOneBlock
-from ultralytics.nn. SwinTransformer import SwinTransformer
+from ultralytics.nn.StokenAttention import StokenAttention
+from ultralytics.nn.SwinTransformer import SwinTransformer
+from ultralytics.nn.v9 import SPPELAN, AConv, ADown, Concat_bifpn
 from ultralytics.nn.vanillanet import vanillanetBlock
+from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
 from ultralytics.utils.loss import (
     E2EDetectLoss,
@@ -94,21 +113,8 @@ from ultralytics.utils.loss import (
     v8PoseLoss,
     v8SegmentationLoss,
 )
-from ultralytics.nn.DSConv import C2f_DySnakeConv
-from ultralytics.nn.DE import C2f_BiFocus, DEA
-from ultralytics.nn.se import SEAttention
-from ultralytics.nn.LDConv import LDConv
-from ultralytics.nn.CAFMAttention import CAFMAttention
-from ultralytics.nn.BoTNet import BoTNet
-from ultralytics.nn.orepa import OREPA
-from ultralytics.nn. Involution import Involution
-from ultralytics.nn.AKConv import AKConv
-from ultralytics.nn.CBAM import CBAM
-from ultralytics.nn.Ghostv3 import *
-
 from ultralytics.utils.ops import make_divisible
 from ultralytics.utils.plotting import feature_visualization
-from ultralytics.nn. EfficientNetv2 import MBConv,FusedMBConv,stem
 from ultralytics.utils.torch_utils import (
     fuse_conv_and_bn,
     fuse_deconv_and_bn,
@@ -118,17 +124,13 @@ from ultralytics.utils.torch_utils import (
     scale_img,
     time_sync,
 )
-from ultralytics.nn.C2f_Faster import C2f_Faster,C3_Faster
-from ultralytics.nn.AIxueshujiaojiaoshou import *
-from ultralytics.nn.PatchExpand import PatchExpand
-from ultralytics.nn.EMA_attention import EMA_attention
-from ultralytics.nn.v9 import SPPELAN,ADown,AConv,Concat_bifpn
+
+
 class BaseModel(nn.Module):
     """The BaseModel class serves as a base class for all the models in the Ultralytics YOLO family."""
 
     def forward(self, x, *args, **kwargs):
-        """
-        Perform forward pass of the model for either training or inference.
+        """Perform forward pass of the model for either training or inference.
 
         If x is a dict, calculates and returns the loss for training. Otherwise, returns predictions for inference.
 
@@ -145,12 +147,11 @@ class BaseModel(nn.Module):
         return self.predict(x, *args, **kwargs)
 
     def predict(self, x, profile=False, visualize=False, augment=False, embed=None):
-        """
-        Perform a forward pass through the network.
+        """Perform a forward pass through the network.
 
         Args:
             x (torch.Tensor): The input tensor to the model.
-            profile (bool):  Print the computation time of each layer if True, defaults to False.
+            profile (bool): Print the computation time of each layer if True, defaults to False.
             visualize (bool): Save the feature maps of the model if True, defaults to False.
             augment (bool): Augment image during prediction, defaults to False.
             embed (list, optional): A list of feature vectors/embeddings to return.
@@ -163,12 +164,11 @@ class BaseModel(nn.Module):
         return self._predict_once(x, profile, visualize, embed)
 
     def _predict_once(self, x, profile=False, visualize=False, embed=None):
-        """
-        Perform a forward pass through the network.
+        """Perform a forward pass through the network.
 
         Args:
             x (torch.Tensor): The input tensor to the model.
-            profile (bool):  Print the computation time of each layer if True, defaults to False.
+            profile (bool): Print the computation time of each layer if True, defaults to False.
             visualize (bool): Save the feature maps of the model if True, defaults to False.
             embed (list, optional): A list of feature vectors/embeddings to return.
 
@@ -197,13 +197,10 @@ class BaseModel(nn.Module):
             if visualize:
                 feature_visualization(x, m.type, m.i, save_dir=visualize)
             if embed and m.i in embed:
-                embeddings.append(
-                    nn.functional.adaptive_avg_pool2d(x, (1, 1)).squeeze(-1).squeeze(-1)
-                )  # flatten
+                embeddings.append(nn.functional.adaptive_avg_pool2d(x, (1, 1)).squeeze(-1).squeeze(-1))  # flatten
                 if m.i == max(embed):
                     return torch.unbind(torch.cat(embeddings, 1), dim=0)
         return x
-
 
     def _predict_augment(self, x):
         """Perform augmentations on input image x and return augmented inference."""
@@ -214,9 +211,8 @@ class BaseModel(nn.Module):
         return self._predict_once(x)
 
     def _profile_one_layer(self, m, x, dt):
-        """
-        Profile the computation time and FLOPs of a single layer of the model on a given input. Appends the results to
-        the provided list.
+        """Profile the computation time and FLOPs of a single layer of the model on a given input. Appends the results
+        to the provided list.
 
         Args:
             m (nn.Module): The layer to be profiled.
@@ -239,8 +235,7 @@ class BaseModel(nn.Module):
             LOGGER.info(f"{sum(dt):10.2f} {'-':>10s} {'-':>10s}  Total")
 
     def fuse(self, verbose=True):
-        """
-        Fuse the `Conv2d()` and `BatchNorm2d()` layers of the model into a single layer, in order to improve the
+        """Fuse the `Conv2d()` and `BatchNorm2d()` layers of the model into a single layer, in order to improve the
         computation efficiency.
 
         Returns:
@@ -269,8 +264,7 @@ class BaseModel(nn.Module):
         return self
 
     def is_fused(self, thresh=10):
-        """
-        Check if the model has less than a certain threshold of BatchNorm layers.
+        """Check if the model has less than a certain threshold of BatchNorm layers.
 
         Args:
             thresh (int, optional): The threshold number of BatchNorm layers. Default is 10.
@@ -282,8 +276,7 @@ class BaseModel(nn.Module):
         return sum(isinstance(v, bn) for v in self.modules()) < thresh  # True if < 'thresh' BatchNorm layers in model
 
     def info(self, detailed=False, verbose=True, imgsz=640):
-        """
-        Prints model information.
+        """Prints model information.
 
         Args:
             detailed (bool): if True, prints out detailed information about the model. Defaults to False
@@ -293,8 +286,7 @@ class BaseModel(nn.Module):
         return model_info(self, detailed=detailed, verbose=verbose, imgsz=imgsz)
 
     def _apply(self, fn):
-        """
-        Applies a function to all the tensors in the model that are not parameters or registered buffers.
+        """Applies a function to all the tensors in the model that are not parameters or registered buffers.
 
         Args:
             fn (function): the function to apply to the model
@@ -311,8 +303,7 @@ class BaseModel(nn.Module):
         return self
 
     def load(self, weights, verbose=True):
-        """
-        Load the weights into the model.
+        """Load the weights into the model.
 
         Args:
             weights (dict | torch.nn.Module): The pre-trained weights to be loaded.
@@ -326,8 +317,7 @@ class BaseModel(nn.Module):
             LOGGER.info(f"Transferred {len(csd)}/{len(self.model.state_dict())} items from pretrained weights")
 
     def loss(self, batch, preds=None):
-        """
-        Compute loss.
+        """Compute loss.
 
         Args:
             batch (dict): Batch to compute loss on
@@ -528,8 +518,7 @@ class ClassificationModel(BaseModel):
 
 
 class RTDETRDetectionModel(DetectionModel):
-    """
-    RTDETR (Real-time DEtection and Tracking using Transformers) Detection Model class.
+    """RTDETR (Real-time DEtection and Tracking using Transformers) Detection Model class.
 
     This class is responsible for constructing the RTDETR architecture, defining loss functions, and facilitating both
     the training and inference processes. RTDETR is an object detection and tracking model that extends from the
@@ -548,8 +537,7 @@ class RTDETRDetectionModel(DetectionModel):
     """
 
     def __init__(self, cfg="rtdetr-l.yaml", ch=3, nc=None, verbose=True):
-        """
-        Initialize the RTDETRDetectionModel.
+        """Initialize the RTDETRDetectionModel.
 
         Args:
             cfg (str): Configuration file name or path.
@@ -566,8 +554,7 @@ class RTDETRDetectionModel(DetectionModel):
         return RTDETRDetectionLoss(nc=self.nc, use_vfl=True)
 
     def loss(self, batch, preds=None):
-        """
-        Compute the loss for the given batch of data.
+        """Compute the loss for the given batch of data.
 
         Args:
             batch (dict): Dictionary containing image and label data.
@@ -611,8 +598,7 @@ class RTDETRDetectionModel(DetectionModel):
         )
 
     def predict(self, x, profile=False, visualize=False, batch=None, augment=False, embed=None):
-        """
-        Perform a forward pass through the model.
+        """Perform a forward pass through the model.
 
         Args:
             x (torch.Tensor): The input tensor.
@@ -642,7 +628,10 @@ class RTDETRDetectionModel(DetectionModel):
         head = self.model[-1]
         x = head([y[j] for j in head.f], batch)  # head inference
         return x
-#详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽 
+
+
+# 详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽
+
 
 class WorldModel(DetectionModel):
     """YOLOv8 World Model."""
@@ -675,8 +664,7 @@ class WorldModel(DetectionModel):
         self.model[-1].nc = len(text)
 
     def predict(self, x, profile=False, visualize=False, txt_feats=None, augment=False, embed=None):
-        """
-        Perform a forward pass through the model.
+        """Perform a forward pass through the model.
 
         Args:
             x (torch.Tensor): The input tensor.
@@ -718,8 +706,7 @@ class WorldModel(DetectionModel):
         return x
 
     def loss(self, batch, preds=None):
-        """
-        Compute loss.
+        """Compute loss.
 
         Args:
             batch (dict): Batch to compute loss on.
@@ -754,25 +741,24 @@ class Ensemble(nn.ModuleList):
 
 @contextlib.contextmanager
 def temporary_modules(modules=None, attributes=None):
-    """
-    Context manager for temporarily adding or modifying modules in Python's module cache (`sys.modules`).
+    """Context manager for temporarily adding or modifying modules in Python's module cache (`sys.modules`).
 
-    This function can be used to change the module paths during runtime. It's useful when refactoring code,
-    where you've moved a module from one location to another, but you still want to support the old import
-    paths for backwards compatibility.
+    This function can be used to change the module paths during runtime. It's useful when refactoring code, where you've
+    moved a module from one location to another, but you still want to support the old import paths for backwards
+    compatibility.
 
     Args:
         modules (dict, optional): A dictionary mapping old module paths to new module paths.
         attributes (dict, optional): A dictionary mapping old module attributes to new module attributes.
 
-    Example:
+    Examples:
         ```python
         with temporary_modules({"old.module": "new.module"}, {"old.module.attribute": "new.module.attribute"}):
             import old.module  # this will now import new.module
             from old.module import attribute  # this will now import new.module.attribute
         ```
 
-    Note:
+    Notes:
         The changes are only in effect inside the context manager and are undone once the context manager exits.
         Be aware that directly manipulating `sys.modules` can lead to unpredictable results, especially in larger
         applications or libraries. Use this function with caution.
@@ -836,25 +822,24 @@ class SafeUnpickler(pickle.Unpickler):
 
 
 def torch_safe_load(weight, safe_only=False):
-    """
-    Attempts to load a PyTorch model with the torch.load() function. If a ModuleNotFoundError is raised, it catches the
-    error, logs a warning message, and attempts to install the missing module via the check_requirements() function.
-    After installation, the function again attempts to load the model using torch.load().
+    """Attempts to load a PyTorch model with the torch.load() function. If a ModuleNotFoundError is raised, it catches
+    the error, logs a warning message, and attempts to install the missing module via the check_requirements()
+    function. After installation, the function again attempts to load the model using torch.load().
 
     Args:
         weight (str): The file path of the PyTorch model.
         safe_only (bool): If True, replace unknown classes with SafeClass during loading.
 
-    Example:
+    Returns:
+        ckpt (dict): The loaded model checkpoint.
+        file (str): The loaded filename
+
+    Examples:
     ```python
     from ultralytics.nn.tasks import torch_safe_load
 
     ckpt, file = torch_safe_load("path/to/best.pt", safe_only=True)
     ```
-
-    Returns:
-        ckpt (dict): The loaded model checkpoint.
-        file (str): The loaded filename
     """
     from ultralytics.utils.downloads import attempt_download_asset
 
@@ -902,7 +887,7 @@ def torch_safe_load(weight, safe_only=False):
         )
         check_requirements(e.name)  # install missing module
         ckpt = torch.load(file, map_location="cpu")
-#详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽 
+    # 详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽
     if not isinstance(ckpt, dict):
         # File is likely a YOLO instance saved with i.e. torch.save(model, "saved_model.pt")
         LOGGER.warning(
@@ -990,7 +975,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
     if scales:
         scale = d.get("scale")
         if not scale:
-            scale = tuple(scales.keys())[0]
+            scale = next(iter(scales.keys()))
             LOGGER.warning(f"WARNING ⚠️ no model scale passed. Assuming scale='{scale}'.")
         depth, width, max_channels = scales[scale]
 
@@ -1003,11 +988,11 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         LOGGER.info(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
     ch = [ch]
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
-    
+
     backbone = False
 
     for i, (f, n, m, args) in enumerate(d["backbone"] + d["head"]):  # from, number, module, args
-        t=m
+        t = m
         m = getattr(torch.nn, m[3:]) if "nn." in m else globals()[m]  # get module
         for j, a in enumerate(args):
             if isinstance(a, str):
@@ -1016,42 +1001,66 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         n = n_ = max(round(n * depth), 1) if n > 1 else n  # depth gain
         if m in {
             Classify,
-            Conv,LightConv,
+            Conv,
+            LightConv,
             ConvTranspose,
             GhostConv,
-            Bottleneck,DualConv,
+            Bottleneck,
+            DualConv,
             GhostBottleneck,
             SPP,
             SPPF,
             C2fPSA,
             C2PSA,
             DWConv,
-            Focus,C2f_DySnakeConv,
+            Focus,
+            C2f_DySnakeConv,
             BottleneckCSP,
-            C1,C2f_Faster,C3_Faster,
-            C2,SEAttention,
+            C1,
+            C2f_Faster,
+            C3_Faster,
+            C2,
+            SEAttention,
             C2f,
             C3k2,
             RepNCSPELAN4,
-            ELAN1,DASI,
-            ADown,CAFMAttention,
-            AConv,BDSConv,
-            SPPELAN,BoTNet,
-            C2fAttn,RepViTblock,
-            C3,AKConv,
-            C3TR,CBAM,
-            C3Ghost,MobileOneBlock,
-            nn.ConvTranspose2d,SwinTransformer,
+            ELAN1,
+            DASI,
+            ADown,
+            CAFMAttention,
+            AConv,
+            BDSConv,
+            SPPELAN,
+            BoTNet,
+            C2fAttn,
+            RepViTblock,
+            C3,
+            AKConv,
+            C3TR,
+            CBAM,
+            C3Ghost,
+            MobileOneBlock,
+            nn.ConvTranspose2d,
+            SwinTransformer,
             DWConvTranspose2d,
-            C3x,HorBlock,
-            RepC3,EMA_attention,
-            PSA,LDConv,MDCR,MSFN,
-            SCDown,Involution,
-            C2fCIB,RepConv,
+            C3x,
+            HorBlock,
+            RepC3,
+            EMA_attention,
+            PSA,
+            LDConv,
+            MDCR,
+            MSFN,
+            SCDown,
+            Involution,
+            C2fCIB,
+            RepConv,
             A2C2f,
-            MBConv, FusedMBConv, stem,
+            MBConv,
+            FusedMBConv,
+            stem,
             DSC3k2,
-            DSConv
+            DSConv,
         }:
             c1, c2 = ch[f], args[0]
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
@@ -1073,13 +1082,14 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
                 C3,
                 C3TR,
                 C3Ghost,
-                C3x,ContextAggregation,
+                C3x,
+                ContextAggregation,
                 RepC3,
                 C2fPSA,
                 C2fCIB,
                 C2PSA,
                 A2C2f,
-                DSC3k2
+                DSC3k2,
             }:
                 args.insert(2, n)  # number of repeats
                 n = 1
@@ -1087,16 +1097,16 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
                 legacy = False
                 if scale in "lx":
                     args[3] = True
-            if m is A2C2f: 
+            if m is A2C2f:
                 legacy = False
                 if scale in "lx":  # for L/X sizes
                     args.append(True)
                     args.append(1.5)
         elif m is vanillanetBlock:
-             c1, c2 = ch[f], args[0]
-             if c2 != torch.NoneType:
-                 cc2 = make_divisible(c2 * width, 8)
-             args = [c1, c2, *args[1:]]
+            c1, c2 = ch[f], args[0]
+            if c2 != torch.NoneType:
+                cc2 = make_divisible(c2 * width, 8)
+            args = [c1, c2, *args[1:]]
         elif m is StokenAttention:
             c2 = ch[f]
             args = [c2, *args]
@@ -1119,7 +1129,9 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
                 c2 = make_divisible(c2 * width, 8)
             args = [c1, c2, *args[1:]]
         elif m in [RepLKNet_Stem, RepLKNet_stage1, RepLKNet_stage2, RepLKNet_stage3, RepLKNet_stage4]:
-            c2 = args[0] #详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+            c2 = args[
+                0
+            ]  # 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
             args = args[1:]
         elif m is MobileOneBlock:
             c1, c2 = ch[f], args[0]
@@ -1149,9 +1161,9 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             c2 = args[0]
             c1 = ch[f]
             args = [c1, c2, *args[1:]]
-        elif m in {Attention,AttentionLePE,BiLevelRoutingAttention}:
+        elif m in {Attention, AttentionLePE, BiLevelRoutingAttention}:
             c2 = ch[f]
-            args=[c2,*args]
+            args = [c2, *args]
         elif m is CBFuse:
             c2 = ch[f[-1]]
         elif m in [OREPA]:
@@ -1173,7 +1185,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             c1 = ch[f[1]]
             c2 = args[0]
             c2 = make_divisible(min(c2, max_channels) * width, 8)
-            he = args[1] 
+            he = args[1]
             if scale in "n":
                 he = int(args[1] * 0.5)
             elif scale in "x":
@@ -1188,36 +1200,36 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             args = [c1]
             if scale in "lx":  # for L/X sizes
                 args.append(False)
-                c2 =c1
+                c2 = c1
         elif m is FullPAD_Tunnel:
             c2 = ch[f[0]]
         else:
             c2 = ch[f]
 
         if isinstance(c2, list):
-           is_backbone = True
-           m_ = m
-           m_.backbone = True
+            is_backbone = True
+            m_ = m
+            m_.backbone = True
         else:
-           m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
-           t = str(m)[8:-2].replace('__main__.', '')  # module type
+            m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
+            t = str(m)[8:-2].replace("__main__.", "")  # module type
         m.np = sum(x.numel() for x in m_.parameters())  # number params
         m_.i, m_.f, m_.type = i + 4 if is_backbone else i, f, t  # attach index, 'from' index, type
         if verbose:
-           LOGGER.info(f'{i:>3}{str(f):>20}{n_:>3}{m.np:10.0f}  {t:<45}{str(args):<30}')  # print
-        save.extend(x % (i + 4 if is_backbone else i) for x in ([f] if isinstance(f, int) else f) if
-                   x != -1)  # append to savelist
+            LOGGER.info(f"{i:>3}{f!s:>20}{n_:>3}{m.np:10.0f}  {t:<45}{args!s:<30}")  # print
+        save.extend(
+            x % (i + 4 if is_backbone else i) for x in ([f] if isinstance(f, int) else f) if x != -1
+        )  # append to savelist
         layers.append(m_)
         if i == 0:
-           ch = []
+            ch = []
         if isinstance(c2, list):
-           ch.extend(c2)
-           for _ in range(5 - len(ch)):
-               ch.insert(0, 0)
+            ch.extend(c2)
+            for _ in range(5 - len(ch)):
+                ch.insert(0, 0)
         else:
-           ch.append(c2)
+            ch.append(c2)
 
-        
     return nn.Sequential(*layers), sorted(save)
 
 
@@ -1238,10 +1250,9 @@ def yaml_model_load(path):
 
 
 def guess_model_scale(model_path):
-    """
-    Takes a path to a YOLO model's YAML file as input and extracts the size character of the model's scale. The function
-    uses regular expression matching to find the pattern of the model scale in the YAML file name, which is denoted by
-    n, s, m, l, or x. The function returns the size character of the model scale as a string.
+    """Takes a path to a YOLO model's YAML file as input and extracts the size character of the model's scale. The
+    function uses regular expression matching to find the pattern of the model scale in the YAML file name, which is
+    denoted by n, s, m, l, or x. The function returns the size character of the model scale as a string.
 
     Args:
         model_path (str | Path): The path to the YOLO model's YAML file.
@@ -1256,8 +1267,7 @@ def guess_model_scale(model_path):
 
 
 def guess_model_task(model):
-    """
-    Guess the task of a PyTorch model from its architecture or configuration.
+    """Guess the task of a PyTorch model from its architecture or configuration.
 
     Args:
         model (nn.Module | dict): PyTorch model or model configuration in YAML format.
@@ -1306,7 +1316,7 @@ def guess_model_task(model):
                 return "obb"
             elif isinstance(m, (Detect, WorldDetect, v10Detect)):
                 return "detect"
-#详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽 
+    # 详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽
     # Guess from model filename
     if isinstance(model, (str, Path)):
         model = Path(model)
@@ -1320,7 +1330,7 @@ def guess_model_task(model):
             return "obb"
         elif "detect" in model.parts:
             return "detect"
-#详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽 
+    # 详细的各类改进方法和流程操作，请关注B站博主：AI学术叫叫兽
     # Unable to determine task from model
     LOGGER.warning(
         "WARNING ⚠️ Unable to automatically guess model task, assuming 'task=detect'. "
