@@ -1,12 +1,8 @@
-
-import time
- 
-import torch.nn as nn
 import numpy as np
 import torch
-import copy
+import torch.nn as nn
 
- 
+
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
     result.add_module(
@@ -66,7 +62,7 @@ class MobileOneBlock(nn.Module):
         deploy=False,
         use_se=False,
     ):
-        super(MobileOneBlock, self).__init__()
+        super().__init__()
         self.deploy = deploy
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -76,7 +72,7 @@ class MobileOneBlock(nn.Module):
         assert kernel_size == 3
         assert padding == 1
         self.k = k
-        padding_11 = padding - kernel_size // 2
+        padding - kernel_size // 2
 
         self.nonlinearity = nn.ReLU()
 
@@ -111,11 +107,7 @@ class MobileOneBlock(nn.Module):
             # self.rbr_dense = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=groups)
             # self.rbr_1x1 = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride, padding=padding_11, groups=groups)
             # print('RepVGG Block, identity = ', self.rbr_identity)
-            self.dw_bn_layer = (
-                nn.BatchNorm2d(in_channels)
-                if out_channels == in_channels and stride == 1
-                else None
-            )
+            self.dw_bn_layer = nn.BatchNorm2d(in_channels) if out_channels == in_channels and stride == 1 else None
             for k_idx in range(k):
                 setattr(
                     self,
@@ -124,15 +116,9 @@ class MobileOneBlock(nn.Module):
                 )
             self.dw_1x1 = DepthWiseConv(in_channels, 1, stride=stride)
 
-            self.pw_bn_layer = (
-                nn.BatchNorm2d(in_channels)
-                if out_channels == in_channels and stride == 1
-                else None
-            )
+            self.pw_bn_layer = nn.BatchNorm2d(in_channels) if out_channels == in_channels and stride == 1 else None
             for k_idx in range(k):
-                setattr(
-                    self, f"pw_1x1_{k_idx}", PointWiseConv(in_channels, out_channels)
-                )
+                setattr(self, f"pw_1x1_{k_idx}", PointWiseConv(in_channels, out_channels))
 
     def forward(self, inputs):
         if self.deploy:
@@ -209,14 +195,8 @@ class MobileOneBlock(nn.Module):
             dw_kernel_3x3.append(k3)
             dw_bias_3x3.append(b3)
         dw_kernel_1x1, dw_bias_1x1 = self._fuse_bn_tensor(self.dw_1x1.conv)
-        dw_kernel_id, dw_bias_id = self._fuse_bn_tensor(
-            self.dw_bn_layer, self.in_channels
-        )
-        dw_kernel = (
-            sum(dw_kernel_3x3)
-            + self._pad_1x1_to_3x3_tensor(dw_kernel_1x1)
-            + dw_kernel_id
-        )
+        dw_kernel_id, dw_bias_id = self._fuse_bn_tensor(self.dw_bn_layer, self.in_channels)
+        dw_kernel = sum(dw_kernel_3x3) + self._pad_1x1_to_3x3_tensor(dw_kernel_1x1) + dw_kernel_id
         dw_bias = sum(dw_bias_3x3) + dw_bias_1x1 + dw_bias_id
         # pw
         pw_kernel = []
@@ -243,7 +223,6 @@ class MobileOneBlock(nn.Module):
             return 0, 0
         if isinstance(branch, nn.Sequential):
             kernel = branch.conv.weight
-            bias = branch.conv.bias
             running_mean = branch.bn.running_mean
             running_var = branch.bn.running_var
             gamma = branch.bn.weight
@@ -257,9 +236,7 @@ class MobileOneBlock(nn.Module):
                 ks = 1
             else:
                 ks = 3
-            kernel_value = np.zeros(
-                (self.in_channels, input_dim, ks, ks), dtype=np.float32
-            )
+            kernel_value = np.zeros((self.in_channels, input_dim, ks, ks), dtype=np.float32)
             for i in range(self.in_channels):
                 if ks == 1:
                     kernel_value[i, i % input_dim, 0, 0] = 1
@@ -318,9 +295,7 @@ class MobileOneBlock(nn.Module):
 
 
 class MobileOneNet(nn.Module):
-    def __init__(
-        self, blocks, ks, channels, strides, width_muls, num_classes=None, deploy=False
-    ):
+    def __init__(self, blocks, ks, channels, strides, width_muls, num_classes=None, deploy=False):
         super().__init__()
 
         self.stage_num = len(blocks)
@@ -337,9 +312,7 @@ class MobileOneNet(nn.Module):
             out_channels = int(channels[idx] * width_muls[idx])
             for b_idx in range(block_num):
                 stride = strides[idx] if b_idx == 0 else 1
-                block = MobileOneBlock(
-                    in_channels, out_channels, ks[idx], stride, deploy=deploy
-                )
+                block = MobileOneBlock(in_channels, out_channels, ks[idx], stride, deploy=deploy)
                 in_channels = out_channels
                 module.append(block)
             setattr(self, f"stage{idx}", nn.Sequential(*module))
