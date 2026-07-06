@@ -1,40 +1,41 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+
+# 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+
 
 class Unfold(nn.Module):
     def __init__(self, kernel_size=3):
         super().__init__()
         self.kernel_size = kernel_size
-        weights = torch.eye(kernel_size ** 2)
-        weights = weights.reshape(kernel_size ** 2, 1, kernel_size, kernel_size)
+        weights = torch.eye(kernel_size**2)
+        weights = weights.reshape(kernel_size**2, 1, kernel_size, kernel_size)
         self.weights = nn.Parameter(weights, requires_grad=False)
+
     def forward(self, x):
         b, c, h, w = x.shape
         x = F.conv2d(x.reshape(b * c, 1, h, w), self.weights, stride=1, padding=self.kernel_size // 2)
         return x.reshape(b, c * 9, h * w)
-#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+
+
+# 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
 class Fold(nn.Module):
-
-
     def __init__(self, kernel_size=3):
         super().__init__()
         self.kernel_size = kernel_size
-        weights = torch.eye(kernel_size ** 2)
-        weights = weights.reshape(kernel_size ** 2, 1, kernel_size, kernel_size)
+        weights = torch.eye(kernel_size**2)
+        weights = weights.reshape(kernel_size**2, 1, kernel_size, kernel_size)
         self.weights = nn.Parameter(weights, requires_grad=False)
 
     def forward(self, x):
-        b, _, h, w = x.shape
+        _b, _, _h, _w = x.shape
         x = F.conv_transpose2d(x, self.weights, stride=1, padding=self.kernel_size // 2)
         return x
 
 
 class Attention(nn.Module):
-    
-
-    def __init__(self, dim, window_size=None, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.):
+    def __init__(self, dim, window_size=None, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0.0, proj_drop=0.0):
         super().__init__()
 
         self.dim = dim
@@ -43,13 +44,14 @@ class Attention(nn.Module):
 
         self.window_size = window_size
 
-        self.scale = qk_scale or head_dim ** -0.5
+        self.scale = qk_scale or head_dim**-0.5
 
         self.qkv = nn.Conv2d(dim, dim * 3, 1, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Conv2d(dim, dim, 1)
         self.proj_drop = nn.Dropout(proj_drop)
-#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+
+    # 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
     def forward(self, x):
         B, C, H, W = x.shape
         N = H * W
@@ -59,33 +61,47 @@ class Attention(nn.Module):
         attn = (k.transpose(-1, -2) @ q) * self.scale
 
         attn = attn.softmax(dim=-2)
-        attn = self.attn_drop(attn)#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+        attn = self.attn_drop(
+            attn
+        )  # 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
 
         x = (v @ attn).reshape(B, C, H, W)
 
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
-#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+
+
+# 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+
 
 class StokenAttention(nn.Module):
-
-
-    def __init__(self, dim, stoken_size=[8,8], n_iter=1, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0.,
-                 proj_drop=0.):
+    def __init__(
+        self,
+        dim,
+        stoken_size=[8, 8],
+        n_iter=1,
+        num_heads=8,
+        qkv_bias=False,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+    ):
         super().__init__()
 
         self.n_iter = n_iter
         self.stoken_size = stoken_size
 
-        self.scale = dim ** - 0.5
+        self.scale = dim**-0.5
 
         self.unfold = Unfold(3)
         self.fold = Fold(3)
 
-        self.stoken_refine = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale,
-                                       attn_drop=attn_drop, proj_drop=proj_drop)
-#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+        self.stoken_refine = Attention(
+            dim, num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale, attn_drop=attn_drop, proj_drop=proj_drop
+        )
+
+    # 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
     def stoken_forward(self, x):
 
         B, C, H0, W0 = x.shape
@@ -100,11 +116,10 @@ class StokenAttention(nn.Module):
         _, _, H, W = x.shape
 
         hh, ww = H // h, W // w
-#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+        # 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
         stoken_features = F.adaptive_avg_pool2d(x, (hh, ww))
 
         pixel_features = x.reshape(B, C, hh, h, ww, w).permute(0, 2, 4, 3, 5, 1).reshape(B, hh * ww, h * w, C)
-
 
         with torch.no_grad():
             for idx in range(self.n_iter):
@@ -120,7 +135,8 @@ class StokenAttention(nn.Module):
                     stoken_features = pixel_features.transpose(-1, -2) @ affinity_matrix
 
                     stoken_features = self.fold(stoken_features.permute(0, 2, 3, 1).reshape(B * C, 9, hh, ww)).reshape(
-                        B, C, hh, ww)
+                        B, C, hh, ww
+                    )
 
                     stoken_features = stoken_features / (affinity_matrix_sum + 1e-12)
 
@@ -140,8 +156,8 @@ class StokenAttention(nn.Module):
         return pixel_features
 
     def direct_forward(self, x):
-      
-        B, C, H, W = x.shape
+
+        _B, _C, _H, _W = x.shape
         stoken_features = x
         stoken_features = self.stoken_refine(stoken_features)
         return stoken_features
@@ -154,4 +170,4 @@ class StokenAttention(nn.Module):
             return self.direct_forward(x)
 
 
-#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+# 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 ,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
