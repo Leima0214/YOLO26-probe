@@ -16,7 +16,7 @@ class SegAD:
             max_depth=5,
             num_parallel_tree=200,
             learning_rate=0.3,
-            objective='binary:logitraw',
+            objective="binary:logitraw",
             colsample_bynode=0.6,
             colsample_bytree=0.6,
             subsample=0.6,
@@ -56,17 +56,21 @@ class SegAD:
 
     def get_features(self, df, cls):
         # Load segmentation map
-        segm_path = os.path.join(self.args.segm_path, cls,
-                                 "bad" if df.label else "good",
-                                 os.path.basename(df.an_map_path))
+        segm_path = os.path.join(
+            self.args.segm_path, cls, "bad" if df.label else "good", os.path.basename(df.an_map_path)
+        )
         mask = np.load(segm_path)
 
         # Load anomaly map and extract features
         for model in self.models_list:
-            an_path = os.path.join(self.args.an_path, model, cls,
-                                   "anomaly_maps",
-                                   "bad" if df.label else "good",
-                                   os.path.basename(df.an_map_path))
+            an_path = os.path.join(
+                self.args.an_path,
+                model,
+                cls,
+                "anomaly_maps",
+                "bad" if df.label else "good",
+                os.path.basename(df.an_map_path),
+            )
             anomaly_map = np.load(an_path)
             for j, part in enumerate(self.components):
                 selection = anomaly_map[mask == j]
