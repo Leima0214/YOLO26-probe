@@ -1,14 +1,10 @@
+from functools import partial
+
 import torch
 import torch.nn as nn
-from torchvision import models
 import torch.nn.functional as F
 
-from functools import partial
 # from .resnet import resnet34
-from torchvision.models import resnet50
-
-
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
 """
 provide three models:
@@ -22,21 +18,22 @@ nonlinearity = partial(F.relu, inplace=True)
 
 class eca_layer(nn.Module):
     """Constructs a ECA module.
+
     Args:
         channel: Number of channels of the input feature map
         k_size: Adaptive selection of kernel size
-        source: https://github.com/BangguWu/ECANet
+        source: https://github.com/BangguWu/ECANet.
     """
 
     def __init__(self, channel, k_size=3):
-        super(eca_layer, self).__init__()
+        super().__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.conv = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         # x: input features with shape [b, c, h, w]
-        b, c, h, w = x.size()
+        _b, _c, _h, _w = x.size()
 
         # feature descriptor on the global spatial information
         y = self.avg_pool(x)
@@ -52,13 +49,13 @@ class eca_layer(nn.Module):
 
 class SELayer(nn.Module):
     def __init__(self, channel, reduction=16):
-        super(SELayer, self).__init__()
+        super().__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
             nn.Linear(channel, channel // reduction, bias=False),
             nn.ReLU(inplace=True),
             nn.Linear(channel // reduction, channel, bias=False),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(self, x):
@@ -69,19 +66,17 @@ class SELayer(nn.Module):
 
 
 def BNReLU(num_features):
-    return nn.Sequential(
-        nn.BatchNorm2d(num_features),
-        nn.ReLU()
-    )
+    return nn.Sequential(nn.BatchNorm2d(num_features), nn.ReLU())
 
 
 # ############################################## drop block ###########################################
 
+
 class Drop(nn.Module):
-    # drop_rate : 1-keep_prob  (all droped feature points)
+    # drop_rate : 1-keep_prob  (all dropped feature points)
     # block_size :
     def __init__(self, drop_rate=0.1, block_size=2):
-        super(Drop, self).__init__()
+        super().__init__()
 
         self.drop_rate = drop_rate
         self.block_size = block_size
@@ -94,7 +89,7 @@ class Drop(nn.Module):
         if self.drop_rate == 0:
             return x
 
-        gamma = self.drop_rate / (self.block_size ** 2)
+        gamma = self.drop_rate / (self.block_size**2)
         # torch.rand(*sizes, out=None)
         mask = (torch.rand(x.shape[0], *x.shape[2:]) < gamma).float()
 
@@ -107,11 +102,12 @@ class Drop(nn.Module):
         return out
 
     def _compute_block_mask(self, mask):
-        block_mask = F.max_pool2d(input=mask[:, None, :, :],
-                                  kernel_size=(self.block_size,
-                                               self.block_size),
-                                  stride=(1, 1),
-                                  padding=self.block_size // 2)
+        block_mask = F.max_pool2d(
+            input=mask[:, None, :, :],
+            kernel_size=(self.block_size, self.block_size),
+            stride=(1, 1),
+            padding=self.block_size // 2,
+        )
         if self.block_size % 2 == 0:
             block_mask = block_mask[:, :, :-1, :-1]
         block_mask = 1 - block_mask.squeeze(1)
@@ -120,9 +116,10 @@ class Drop(nn.Module):
 
 # ############################################## HIFA_module_v1 ###########################################
 
+
 class SPP_inception_block(nn.Module):
     def __init__(self, in_channels):
-        super(SPP_inception_block, self).__init__()
+        super().__init__()
         self.pool1 = nn.MaxPool2d(kernel_size=[2, 2], stride=2)  # [3, 3]
         self.pool2 = nn.MaxPool2d(kernel_size=[3, 3], stride=3)  # [2, 2]
         # self.pool = nn.MaxPool2d(kernel_size=[4, 4], stride=4) # [1, 1]
@@ -141,7 +138,7 @@ class SPP_inception_block(nn.Module):
                     m.bias.data.zero_()
 
     def forward(self, x):
-        b, c, h, w = x.size()  # [4, 256, 7, 7]
+        b, c, _h, _w = x.size()  # [4, 256, 7, 7]
         pool_1 = self.pool1(x).view(b, c, -1)  # [2, 256, 3, 3], [2, 256, 9]
         # pool_1 = self.pool(x).view(b, c, -1)
         pool_2 = self.pool2(x).view(b, c, -1)  # [2, 256, 2, 2], [2, 256, 4]
@@ -154,7 +151,8 @@ class SPP_inception_block(nn.Module):
         dilate2_out = nonlinearity(self.conv1x1(self.dilate2(x)))
         dilate3_out = nonlinearity(self.conv1x1(self.dilate2(self.dilate1(x))))
         dilate4_out = nonlinearity(
-            self.conv1x1(self.dilate3(self.dilate2(self.dilate1(x)))))  # self.conv1x1 is not necessary
+            self.conv1x1(self.dilate3(self.dilate2(self.dilate1(x))))
+        )  # self.conv1x1 is not necessary
 
         cnn_out = dilate1_out + dilate2_out + dilate3_out + dilate4_out  # [2, 256, 7, 7]
         cnn_out = cnn_out.view(b, c, -1)  # [2, 256, 49]
@@ -166,22 +164,18 @@ class SPP_inception_block(nn.Module):
 
 
 class NonLocal_spp_inception_block(nn.Module):
-    '''
-    The basic implementation for self-attention block/non-local block
-    Input:
+    """The basic implementation for self-attention block/non-local block Input: N X C X H X W Parameters: in_channels :
+    the dimension of the input feature map key_channels : the dimension after the key/query transform value_channels
+    : the dimension after the value transform scale : choose the scale to downsample the input feature maps (save
+    memory cost).
+
+    Returns:
         N X C X H X W
-    Parameters:
-        in_channels       : the dimension of the input feature map
-        key_channels      : the dimension after the key/query transform
-        value_channels    : the dimension after the value transform
-        scale             : choose the scale to downsample the input feature maps (save memory cost)
-    Return:
-        N X C X H X W
-        position-aware context features.(w/o concate or add with the input)
-    '''
+        position-aware context features.(w/o concate or add with the input).
+    """
 
     def __init__(self, in_channels=512, ratio=2):
-        super(NonLocal_spp_inception_block, self).__init__()
+        super().__init__()
         self.in_channels = in_channels
         self.out_channels = in_channels
         self.key_channels = in_channels // ratio
@@ -194,11 +188,13 @@ class NonLocal_spp_inception_block(nn.Module):
 
         self.f_query = self.f_key
 
-        self.f_value = nn.Conv2d(in_channels=self.in_channels, out_channels=self.value_channels,
-                                 kernel_size=1, stride=1, padding=0)
+        self.f_value = nn.Conv2d(
+            in_channels=self.in_channels, out_channels=self.value_channels, kernel_size=1, stride=1, padding=0
+        )
 
-        self.W = nn.Conv2d(in_channels=self.value_channels, out_channels=self.out_channels,
-                           kernel_size=1, stride=1, padding=0)
+        self.W = nn.Conv2d(
+            in_channels=self.value_channels, out_channels=self.out_channels, kernel_size=1, stride=1, padding=0
+        )
 
         self.spp_inception_v = SPP_inception_block(self.key_channels)
         self.spp_inception_k = SPP_inception_block(self.key_channels)
@@ -206,7 +202,7 @@ class NonLocal_spp_inception_block(nn.Module):
         nn.init.constant_(self.W.bias, 0)
 
     def forward(self, x):
-        batch_size, h, w = x.size(0), x.size(2), x.size(3)  # [2, 512, 7, 7]
+        batch_size, _h, _w = x.size(0), x.size(2), x.size(3)  # [2, 512, 7, 7]
 
         x_v = self.f_value(x)  # [2, 256, 7, 7]
         value = self.spp_inception_v(x_v)  # [2, 64, 256]  15+49
@@ -219,7 +215,7 @@ class NonLocal_spp_inception_block(nn.Module):
         key = key.permute(0, 2, 1)  # # [2, 256, 64]
 
         sim_map = torch.matmul(query, key)  # [2, 49, 64]
-        sim_map = (self.key_channels ** -.5) * sim_map
+        sim_map = (self.key_channels**-0.5) * sim_map
         sim_map = F.softmax(sim_map, dim=-1)
 
         context = torch.matmul(sim_map, value)  # [2, 49, 256]
@@ -231,22 +227,20 @@ class NonLocal_spp_inception_block(nn.Module):
 
 
 class HIFA_V1(nn.Module):
-    """
-    Parameters:
-        in_features / out_features: the channels of the input / output feature maps.
-        dropout: we choose 0.05 as the default value.
-        size: you can apply multiple sizes. Here we only use one size.
-    Return:
+    """Parameters: in_features / out_features: the channels of the input / output feature maps. dropout: we choose 0.05
+    as the default value. size: you can apply multiple sizes. Here we only use one size.
+
+    Returns:
         features fused with Object context information.
     """
 
     def __init__(self, in_channels=512, ratio=2, dropout=0.0):
-        super(HIFA_V1, self).__init__()
+        super().__init__()
 
         self.NSIB = NonLocal_spp_inception_block(in_channels=in_channels, ratio=ratio)
         self.conv_bn_dropout = nn.Sequential(
             nn.Conv2d(2 * in_channels, in_channels, kernel_size=1, padding=0),
-            BNReLU(in_channels)
+            BNReLU(in_channels),
             # nn.Dropout2d(dropout)
         )
 
@@ -259,9 +253,10 @@ class HIFA_V1(nn.Module):
 
 # ############################################## HIFA_module_v2 ############################################################
 
+
 class SPP_inception_block_v2(nn.Module):
     def __init__(self, in_channels):
-        super(SPP_inception_block_v2, self).__init__()
+        super().__init__()
         self.pool1 = nn.MaxPool2d(kernel_size=[1, 1], stride=2)  # [4, 4]
         self.pool2 = nn.MaxPool2d(kernel_size=[2, 2], stride=2)  # [3, 3]
         self.pool3 = nn.MaxPool2d(kernel_size=[3, 3], stride=3)  # [2, 2]
@@ -278,7 +273,7 @@ class SPP_inception_block_v2(nn.Module):
                     m.bias.data.zero_()
 
     def forward(self, x):
-        b, c, h, w = x.size()  # [4, 272, 7, 7]
+        b, c, _h, _w = x.size()  # [4, 272, 7, 7]
         pool_1 = self.pool1(x).view(b, c, -1)  # [2, 272, 4, 4], [2, 272, 16]
         # pool_1 = self.pool(x).view(b, c, -1)
         pool_2 = self.pool2(x).view(b, c, -1)  # [2, 272, 3, 3], [2, 272, 9]
@@ -302,48 +297,47 @@ class SPP_inception_block_v2(nn.Module):
 
 
 class NonLocal_spp_inception_block_v2(nn.Module):
-    '''
-    The basic implementation for self-attention block/non-local block
-    Input:
+    """The basic implementation for self-attention block/non-local block Input: N X C X H X W Parameters: in_channels :
+    the dimension of the input feature map key_channels : the dimension after the key/query transform value_channels
+    : the dimension after the value transform scale : choose the scale to downsample the input feature maps (save
+    memory cost).
+
+    Returns:
         N X C X H X W
-    Parameters:
-        in_channels       : the dimension of the input feature map
-        key_channels      : the dimension after the key/query transform
-        value_channels    : the dimension after the value transform
-        scale             : choose the scale to downsample the input feature maps (save memory cost)
-    Return:
-        N X C X H X W
-        position-aware context features.(w/o concate or add with the input)
-    '''
+        position-aware context features.(w/o concate or add with the input).
+    """
 
     def __init__(self, in_channels=512, ratio=2):
-        super(NonLocal_spp_inception_block_v2, self).__init__()
+        super().__init__()
         self.in_channels = in_channels
         self.out_channels = in_channels
         self.value_channels = in_channels // ratio  # key == value
         self.query_channels = in_channels // ratio
 
         self.f_value = nn.Sequential(
-            nn.Conv2d(in_channels=self.in_channels, out_channels=self.value_channels, kernel_size=1, stride=1,
-                      padding=0),
+            nn.Conv2d(
+                in_channels=self.in_channels, out_channels=self.value_channels, kernel_size=1, stride=1, padding=0
+            ),
             BNReLU(self.value_channels),
         )
 
         self.f_query = nn.Sequential(
-            nn.Conv2d(in_channels=self.in_channels, out_channels=self.query_channels, kernel_size=1, stride=1,
-                      padding=0),
+            nn.Conv2d(
+                in_channels=self.in_channels, out_channels=self.query_channels, kernel_size=1, stride=1, padding=0
+            ),
             BNReLU(self.query_channels),
         )
 
-        self.W = nn.Conv2d(in_channels=self.value_channels, out_channels=self.out_channels,
-                           kernel_size=1, stride=1, padding=0)
+        self.W = nn.Conv2d(
+            in_channels=self.value_channels, out_channels=self.out_channels, kernel_size=1, stride=1, padding=0
+        )
 
         self.spp_inception_v = SPP_inception_block_v2(self.value_channels)  # key == value
         nn.init.constant_(self.W.weight, 0)
         nn.init.constant_(self.W.bias, 0)
 
     def forward(self, x):
-        batch_size, h, w = x.size(0), x.size(2), x.size(3)  # [4, 544, 7, 7]
+        batch_size, _h, _w = x.size(0), x.size(2), x.size(3)  # [4, 544, 7, 7]
 
         x_v = self.f_value(x)  # [4, 272, 7, 7]
         value = self.spp_inception_v(x_v)  # [4, 79, 272]  30+49
@@ -355,7 +349,7 @@ class NonLocal_spp_inception_block_v2(nn.Module):
         key = key_0.permute(0, 2, 1)  # [4, 272, 79]
 
         sim_map = torch.matmul(query, key)  # [4, 49, 79]
-        sim_map = (self.value_channels ** -.5) * sim_map
+        sim_map = (self.value_channels**-0.5) * sim_map
         sim_map = F.softmax(sim_map, dim=-1)
 
         context = torch.matmul(sim_map, value)  # [4, 49, 272]
@@ -367,17 +361,15 @@ class NonLocal_spp_inception_block_v2(nn.Module):
 
 
 class HIFA_V2(nn.Module):
-    """
-    Parameters:
-        in_features / out_features: the channels of the input / output feature maps.
-        dropout: we choose 0.05 as the default value.
-        size: you can apply multiple sizes. Here we only use one size.
-    Return:
+    """Parameters: in_features / out_features: the channels of the input / output feature maps. dropout: we choose 0.05
+    as the default value. size: you can apply multiple sizes. Here we only use one size.
+
+    Returns:
         features fused with Object context information.
     """
 
     def __init__(self, in_channels=512, ratio=2, dropout=0.0):
-        super(HIFA_V2, self).__init__()
+        super().__init__()
 
         self.NSIB = NonLocal_spp_inception_block_v2(in_channels=in_channels, ratio=ratio)
         # def __init__(self, in_channels, key_channels, value_channels, out_channels=None, scale=1, psp_size=(1,3,6,8)):
@@ -391,9 +383,10 @@ class HIFA_V2(nn.Module):
 
 # ################################ MFII at decoder stage ######################################################################
 
+
 class MFII_DecoderBlock_V1(nn.Module):
     def __init__(self, in_channels, n_filters, rla_channel=32, SE=False, ECA_size=5, reduction=16):
-        super(MFII_DecoderBlock_V1, self).__init__()
+        super().__init__()
 
         self.conv1 = nn.Conv2d(in_channels + rla_channel, in_channels // 4, 1)
         self.norm1 = nn.BatchNorm2d(in_channels // 4)
@@ -416,12 +409,13 @@ class MFII_DecoderBlock_V1(nn.Module):
             self.se = SELayer(n_filters * self.expansion, reduction)
 
         self.eca = None
-        if ECA_size != None:
+        if ECA_size is not None:
             self.eca = eca_layer(n_filters * self.expansion, int(ECA_size))
 
         self.conv_out = nn.Conv2d(n_filters, rla_channel, kernel_size=(1, 1), stride=(1, 1), bias=False)
-        self.recurrent_conv = nn.Conv2d(rla_channel, rla_channel, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1),
-                                        bias=False)
+        self.recurrent_conv = nn.Conv2d(
+            rla_channel, rla_channel, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False
+        )
         self.norm4 = nn.BatchNorm2d(rla_channel)
         self.tanh = nn.Tanh()
 
@@ -440,10 +434,10 @@ class MFII_DecoderBlock_V1(nn.Module):
         out = self.conv3(out)  # [2, 256, 14, 14]
         out = self.norm3(out)
 
-        if self.se != None:
+        if self.se is not None:
             out = self.se(out)
 
-        if self.eca != None:
+        if self.eca is not None:
             out = self.eca(out)  # [2, 256, 14, 14]
 
         y = out  # [2, 256, 14, 14]
@@ -464,7 +458,7 @@ class MFII_DecoderBlock_V1(nn.Module):
 
 class MFII_DecoderBlock_V2(nn.Module):
     def __init__(self, in_channels, n_filters, rla_channel=32, SE=False, ECA_size=5, reduction=16):
-        super(MFII_DecoderBlock_V2, self).__init__()
+        super().__init__()
 
         self.conv1 = nn.Conv2d(in_channels + rla_channel, in_channels // 4, 1)
         self.norm1 = nn.BatchNorm2d(in_channels // 4)
@@ -487,7 +481,7 @@ class MFII_DecoderBlock_V2(nn.Module):
             self.se = SELayer(n_filters * self.expansion, reduction)
 
         self.eca = None
-        if ECA_size != None:
+        if ECA_size is not None:
             self.eca = eca_layer(n_filters * self.expansion, int(ECA_size))
 
         self.conv_out = nn.Conv2d(n_filters, rla_channel, kernel_size=(1, 1), stride=(1, 1), bias=False)
@@ -510,10 +504,10 @@ class MFII_DecoderBlock_V2(nn.Module):
         out = self.conv3(out)  # [2, 256, 14, 14]
         out = self.norm3(out)
 
-        if self.se != None:
+        if self.se is not None:
             out = self.se(out)
 
-        if self.eca != None:
+        if self.eca is not None:
             out = self.eca(out)  # [2, 256, 14, 14]
 
         y = out  # [2, 256, 14, 14]
@@ -534,9 +528,10 @@ class MFII_DecoderBlock_V2(nn.Module):
 
 # ################################ I2U_Net_L ######################################################################
 
+
 class I2U_Net_L(nn.Module):
     def __init__(self, classes=2, channels=3):
-        super(I2U_Net_L, self).__init__()
+        super().__init__()
 
         self.rla_channel = 32
         filters = [64, 128, 256, 512]
@@ -556,7 +551,7 @@ class I2U_Net_L(nn.Module):
         self.finalconv3 = nn.Conv2d(32, classes, 3, padding=1)
 
     def forward(self, x):
-        e1, e2, e3, e4, e_h1, e_h2, e_h3, e_h4 = self.model(x)
+        e1, e2, e3, e4, e_h1, e_h2, e_h3, _e_h4 = self.model(x)
 
         # Center
         e4_flat = self.flat_layer(e4)
@@ -564,8 +559,9 @@ class I2U_Net_L(nn.Module):
 
         # Decoder
         batch, _, height, width = e4.size()
-        h_initialize = torch.zeros(batch, self.rla_channel, height, width,
-                                   device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+        h_initialize = torch.zeros(
+            batch, self.rla_channel, height, width, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        )
 
         dh_4 = h_initialize
 
@@ -596,9 +592,10 @@ class I2U_Net_L(nn.Module):
 
 # ################################ I2U_Net_M ######################################################################
 
+
 class I2U_Net_M(nn.Module):
     def __init__(self, classes=2, channels=3):
-        super(I2U_Net_M, self).__init__()
+        super().__init__()
 
         self.rla_channel = 32
         filters = [64, 128, 256, 512]
@@ -656,9 +653,10 @@ class I2U_Net_M(nn.Module):
 
 # ################################ I2U_Net_S ######################################################################
 
+
 class I2U_Net_S(nn.Module):
     def __init__(self, classes=2, channels=3):
-        super(I2U_Net_S, self).__init__()
+        super().__init__()
 
         self.rla_channel = 16
         filters = [32, 64, 128, 256]
@@ -713,6 +711,7 @@ class I2U_Net_S(nn.Module):
         out = self.finalconv3(out)
 
         return F.sigmoid(out)
+
 
 if __name__ == "__main__":
     # 创建一个简单的输入特征图

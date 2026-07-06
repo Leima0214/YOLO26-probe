@@ -9,12 +9,35 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-from ultralytics.nn. SwinTransformer import SwinTransformer
-from ultralytics.nn. Involution import Involution
-from ultralytics.nn.LDConv import LDConv
-from ultralytics.nn.StokenAttention import StokenAttention
+
+from ultralytics.nn.AIxueshujiaojiaoshou import *
+from ultralytics.nn.AKConv import AKConv
 from ultralytics.nn.autobackend import check_class_names
-from ultralytics.nn.vanillanet import vanillanetBlock
+from ultralytics.nn.BiFormer import Attention, AttentionLePE, BiLevelRoutingAttention
+from ultralytics.nn.BoTNet import BoTNet
+from ultralytics.nn.C2f_Faster import C2f_Faster, C3_Faster
+from ultralytics.nn.CAFMAttention import CAFMAttention
+from ultralytics.nn.CARAFE import (
+    CARAFE,  # 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+)
+from ultralytics.nn.CBAM import CBAM
+from ultralytics.nn.ContextAggregation import ContextAggregation
+from ultralytics.nn.DSConv import Bottleneck_DySnakeConv, C2f_DySnakeConv, DSConv, DySnakeConv
+from ultralytics.nn.EfficientNetv2 import FusedMBConv, MBConv, stem
+from ultralytics.nn.EMA_attention import EMA_attention
+from ultralytics.nn.Glod import (
+    IFM,
+    AdvPoolFusion,
+    InjectionMultiSum_Auto_pool,
+    PyramidPoolAgg,
+    SimFusion_3in,
+    SimFusion_4in,
+    TopBasicLayer,
+)
+from ultralytics.nn.HorBlock import HorBlock
+from ultralytics.nn.Involution import Involution
+from ultralytics.nn.LDConv import LDConv
+from ultralytics.nn.MobileOne import MobileOneBlock
 from ultralytics.nn.modules import (
     AIFI,
     C1,
@@ -77,28 +100,23 @@ from ultralytics.nn.modules import (
     YOLOESegment26,
     v10Detect,
 )
-from ultralytics.nn.se import SEAttention
-from ultralytics.nn.spdconv import space_to_depth
-from ultralytics.nn.ShuffleNetV2 import ShuffleNetV2, Conv_maxpool
-from ultralytics.nn. MobileOne import MobileOneBlock
-from ultralytics.utils import DEFAULT_CFG_DICT, LOGGER, YAML, colorstr, emojis
-from ultralytics.nn.BiFormer import BiLevelRoutingAttention,Attention,AttentionLePE
-from ultralytics.nn.AKConv import AKConv
-from ultralytics.nn.PatchExpand import PatchExpand
-from ultralytics.nn.orepa import OREPA
-from ultralytics.nn. HorBlock import HorBlock
-from ultralytics.nn.RepConv import RepConv
-from ultralytics.nn.RFAConv import RFAConv
-from ultralytics.nn.RepViTblock import RepViTblock
-from ultralytics.nn.AIxueshujiaojiaoshou import *
-from ultralytics.nn.Glod import  IFM,SimFusion_3in,SimFusion_4in,InjectionMultiSum_Auto_pool,PyramidPoolAgg,TopBasicLayer,AdvPoolFusion
-from ultralytics.nn. EfficientNetv2 import MBConv,FusedMBConv,stem
-from ultralytics.nn.EMA_attention import EMA_attention
 from ultralytics.nn.ODConv import ODConv
-from ultralytics.nn. RepLKNet import RepLKNet_Stem, RepLKNet_stage1, RepLKNet_stage2, RepLKNet_stage3, RepLKNet_stage4
-from ultralytics.nn.CARAFE import CARAFE#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+from ultralytics.nn.orepa import OREPA
+from ultralytics.nn.PatchExpand import PatchExpand
+from ultralytics.nn.RepConv import RepConv
+from ultralytics.nn.RepLKNet import RepLKNet_stage1, RepLKNet_stage2, RepLKNet_stage3, RepLKNet_stage4, RepLKNet_Stem
+from ultralytics.nn.RepViTblock import RepViTblock
+from ultralytics.nn.RFAConv import RFAConv
+from ultralytics.nn.se import SEAttention
+from ultralytics.nn.ShuffleNetV2 import Conv_maxpool, ShuffleNetV2
+from ultralytics.nn.SlimNeck import GSConv, VoVGSCSP, VoVGSCSPC
+from ultralytics.nn.spdconv import space_to_depth
+from ultralytics.nn.StokenAttention import StokenAttention
+from ultralytics.nn.SwinTransformer import SwinTransformer
+from ultralytics.nn.v9 import SPPELAN, AConv, ADown, Concat_bifpn
+from ultralytics.nn.vanillanet import vanillanetBlock
+from ultralytics.utils import DEFAULT_CFG_DICT, LOGGER, YAML, colorstr, emojis
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
-from ultralytics.nn. SlimNeck import VoVGSCSP, VoVGSCSPC, GSConv
 from ultralytics.utils.loss import (
     E2ELoss,
     PoseLoss26,
@@ -108,16 +126,9 @@ from ultralytics.utils.loss import (
     v8PoseLoss,
     v8SegmentationLoss,
 )
-from ultralytics.nn.C2f_Faster import C2f_Faster,C3_Faster
-from ultralytics.nn.CAFMAttention import CAFMAttention
-from ultralytics.nn.BoTNet import BoTNet
 from ultralytics.utils.ops import make_divisible
 from ultralytics.utils.patches import torch_load
-from ultralytics.nn.DSConv import DSConv,DySnakeConv,C2f_DySnakeConv,Bottleneck_DySnakeConv
 from ultralytics.utils.plotting import feature_visualization
-from ultralytics.nn.CBAM import CBAM
-from ultralytics.nn.AIxueshujiaojiaoshou import *
-from ultralytics.nn.ContextAggregation import ContextAggregation
 from ultralytics.utils.torch_utils import (
     fuse_conv_and_bn,
     fuse_deconv_and_bn,
@@ -129,7 +140,7 @@ from ultralytics.utils.torch_utils import (
     time_sync,
 )
 
-from ultralytics.nn.v9 import SPPELAN,ADown,AConv,Concat_bifpn
+
 class BaseModel(torch.nn.Module):
     """Base class for all YOLO models in the Ultralytics family.
 
@@ -1580,37 +1591,68 @@ def parse_model(d, ch, verbose=True):
     base_modules = frozenset(
         {
             Classify,
-            Conv,HorBlock,
+            Conv,
+            HorBlock,
             ConvTranspose,
-            GhostConv,RFAConv,
+            GhostConv,
+            RFAConv,
             Bottleneck,
-            GhostBottleneck,SEAttention,
+            GhostBottleneck,
+            SEAttention,
             SPP,
             SPPF,
-            C2fPSA,Involution,
+            C2fPSA,
+            Involution,
             C2PSA,
-            DWConv,DASI,
+            DWConv,
+            DASI,
             Focus,
-            BottleneckCSP,DualConv,
-            C1,MBConv,FusedMBConv,stem,
-            C2,ContextAggregation,
-            C2f,VoVGSCSP, VoVGSCSPC,GSConv,LDConv,
-            C3k2,MDCR,
-            RepNCSPELAN4,MSFN,
-            ELAN1,CARAFE,CBAM,
-            ADown,EMA_attention,
-            AConv,MobileOneBlock,
-            SPPELAN,CAFMAttention,
-            C2fAttn,RepConv,
-            C3,BoTNet,RepViTblock,
+            BottleneckCSP,
+            DualConv,
+            C1,
+            MBConv,
+            FusedMBConv,
+            stem,
+            C2,
+            ContextAggregation,
+            C2f,
+            VoVGSCSP,
+            VoVGSCSPC,
+            GSConv,
+            LDConv,
+            C3k2,
+            MDCR,
+            RepNCSPELAN4,
+            MSFN,
+            ELAN1,
+            CARAFE,
+            CBAM,
+            ADown,
+            EMA_attention,
+            AConv,
+            MobileOneBlock,
+            SPPELAN,
+            CAFMAttention,
+            C2fAttn,
+            RepConv,
+            C3,
+            BoTNet,
+            RepViTblock,
             C3TR,
-            C3Ghost,C2f_Faster,C3_Faster,
-            DSConv, DySnakeConv, C2f_DySnakeConv, Bottleneck_DySnakeConv,
+            C3Ghost,
+            C2f_Faster,
+            C3_Faster,
+            DSConv,
+            DySnakeConv,
+            C2f_DySnakeConv,
+            Bottleneck_DySnakeConv,
             torch.nn.ConvTranspose2d,
             DWConvTranspose2d,
             C3x,
-            RepC3,AKConv,
-            PSA,SwinTransformer,
+            RepC3,
+            AKConv,
+            PSA,
+            SwinTransformer,
             SCDown,
             C2fCIB,
             A2C2f,
@@ -1674,11 +1716,13 @@ def parse_model(d, ch, verbose=True):
             c1, c2 = ch[f], args[0]
             c2 = make_divisible(c2 * width, 8)
             args = [c1, c2, n, *args[1:]]
-        elif m in {Attention,AttentionLePE,BiLevelRoutingAttention}:
+        elif m in {Attention, AttentionLePE, BiLevelRoutingAttention}:
             c2 = ch[f]
-            args=[c2,*args]
+            args = [c2, *args]
         elif m in [RepLKNet_Stem, RepLKNet_stage1, RepLKNet_stage2, RepLKNet_stage3, RepLKNet_stage4]:
-            c2 = args[0] #详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+            c2 = args[
+                0
+            ]  # 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
             args = args[1:]
         elif m in [OREPA]:
             c2 = ch[f]
@@ -1703,13 +1747,15 @@ def parse_model(d, ch, verbose=True):
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
             args = [[ch[f_] for f_ in f], c2]
-        elif m is IFM: #详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+        elif (
+            m is IFM
+        ):  # 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
             c1 = ch[f]
             c2 = sum(args[0])
             args = [c1, *args]
         elif m is ResNetLayer:
             c2 = args[1] if args[3] else args[1] * 4
-        elif m in [ShuffleNetV2,Conv_maxpool]:
+        elif m in [ShuffleNetV2, Conv_maxpool]:
             c1, c2 = ch[f], args[0]
             if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
                 c2 = make_divisible(c2 * width, 8)
@@ -1758,10 +1804,10 @@ def parse_model(d, ch, verbose=True):
             args = [ch[f], *args]
             c2 = ch[f] // 2
         elif m is vanillanetBlock:
-             c1, c2 = ch[f], args[0]
-             if c2 != torch.NoneType:
-                 c2 = make_divisible(c2 * width, 8)
-             args = [c1, c2, *args[1:]]
+            c1, c2 = ch[f], args[0]
+            if c2 != torch.NoneType:
+                c2 = make_divisible(c2 * width, 8)
+            args = [c1, c2, *args[1:]]
         elif m is CBFuse:
             c2 = ch[f[-1]]
         elif m is InjectionMultiSum_Auto_pool:

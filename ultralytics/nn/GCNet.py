@@ -1,8 +1,8 @@
 import torch
+import torch.fft
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.models.layers import trunc_normal_, DropPath
-import torch.fft
+from timm.models.layers import trunc_normal_
 from torch.nn import LayerNorm
 
 
@@ -24,12 +24,12 @@ class GlobalLocalFilter(nn.Module):
         self.dw = nn.Conv2d(dim // 2, dim // 2, kernel_size=3, padding=1, bias=False, groups=dim // 2)
 
         self.complex_weight = nn.Parameter(torch.randn(dim // 2, h, w, 2, dtype=torch.float32) * 0.02)
-        trunc_normal_(self.complex_weight, std=.02)
+        trunc_normal_(self.complex_weight, std=0.02)
 
-        self.pre_norm = LayerNorm(dim, eps=1e-6, data_format='channels_first')
-        self.post_norm = LayerNorm(dim, eps=1e-6, data_format='channels_first')
+        self.pre_norm = LayerNorm(dim, eps=1e-6, data_format="channels_first")
+        self.post_norm = LayerNorm(dim, eps=1e-6, data_format="channels_first")
 
-        print(f'[GlobalLocalFilter] dim={dim}, h={h}, w={w}')
+        print(f"[GlobalLocalFilter] dim={dim}, h={h}, w={w}")
 
     def forward(self, x):
         x = self.pre_norm(x)
@@ -40,16 +40,17 @@ class GlobalLocalFilter(nn.Module):
 
         x2 = x2.to(torch.float32)
         B, C, a, b = x2.shape
-        x2 = torch.fft.rfft2(x2, dim=(2, 3), norm='ortho')
+        x2 = torch.fft.rfft2(x2, dim=(2, 3), norm="ortho")
         weight = self.complex_weight
 
         if not weight.shape[1:3] == x2.shape[2:4]:
-            weight = F.interpolate(weight.permute(3, 0, 1, 2), size=x2.shape[2:4], mode='bilinear',
-                                   align_corners=True).permute(1, 2, 3, 0)
+            weight = F.interpolate(
+                weight.permute(3, 0, 1, 2), size=x2.shape[2:4], mode="bilinear", align_corners=True
+            ).permute(1, 2, 3, 0)
         weight = torch.view_as_complex(weight.contiguous())
 
         x2 = x2 * weight
-        x2 = torch.fft.irfft2(x2, s=(a, b), dim=(2, 3), norm='ortho')
+        x2 = torch.fft.irfft2(x2, s=(a, b), dim=(2, 3), norm="ortho")
 
         x = torch.cat([x1.unsqueeze(2), x2.unsqueeze(2)], dim=2).reshape(B, 2 * C, a, b)
         x = self.post_norm(x)
@@ -63,7 +64,7 @@ class gnconv(nn.Module):
         self.dim = dim
 
         # 计算基础维度
-        self.base_dims = [dim // (2 ** i) for i in range(order)]
+        self.base_dims = [dim // (2**i) for i in range(order)]
         self.base_dims.reverse()
 
         # 动态调整维度确保总和 = 2*dim
@@ -84,16 +85,13 @@ class gnconv(nn.Module):
 
         self.proj_out = nn.Conv2d(dim, dim, 1)
 
-        self.pws = nn.ModuleList([
-            nn.Conv2d(self.dims[i], self.dims[i + 1], 1)
-            for i in range(order - 1)
-        ])
+        self.pws = nn.ModuleList([nn.Conv2d(self.dims[i], self.dims[i + 1], 1) for i in range(order - 1)])
 
         self.scale = s
-        print(f'[gnconv] dim={dim}, order={order}, dims={self.dims}, scale={s:.4f}')
+        print(f"[gnconv] dim={dim}, order={order}, dims={self.dims}, scale={s:.4f}")
 
     def adjust_dims(self, dim, base_dims):
-        """动态调整维度确保分割尺寸匹配"""
+        """动态调整维度确保分割尺寸匹配."""
         total_needed = 2 * dim
         base_sum = sum(base_dims)
         dims = base_dims.copy()
@@ -105,8 +103,7 @@ class gnconv(nn.Module):
         dims[-1] += adjustment
 
         # 验证调整结果
-        assert base_dims[0] + sum(dims) == 2 * dim, \
-            f"维度调整失败: {base_dims[0]} + {sum(dims)} != {2 * dim}"
+        assert base_dims[0] + sum(dims) == 2 * dim, f"维度调整失败: {base_dims[0]} + {sum(dims)} != {2 * dim}"
 
         return dims
 
