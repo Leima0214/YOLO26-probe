@@ -1,23 +1,20 @@
-import contextlib
-from copy import deepcopy
-from pathlib import Path
-
 import torch
 import torch.nn as nn
 
 
-class Conv_maxpool(nn.Module):  
-    def __init__(self, c1, c2):  # ch_in, ch_out  
-        super().__init__()  
-        self.conv= nn.Sequential(
+class Conv_maxpool(nn.Module):
+    def __init__(self, c1, c2):  # ch_in, ch_out
+        super().__init__()
+        self.conv = nn.Sequential(
             nn.Conv2d(c1, c2, kernel_size=3, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(c2),
             nn.ReLU(inplace=True),
         )
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
 
-    def forward(self, x):  
+    def forward(self, x):
         return self.maxpool(self.conv(x))
+
 
 class ShuffleNetV2(nn.Module):
     def __init__(self, inp, oup, stride):  # ch_in, ch_out, stride
@@ -35,18 +32,26 @@ class ShuffleNetV2(nn.Module):
                 nn.BatchNorm2d(inp),
                 nn.Conv2d(inp, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
                 nn.BatchNorm2d(branch_features),
-                nn.ReLU(inplace=True))
+                nn.ReLU(inplace=True),
+            )
         else:
             self.branch1 = nn.Sequential()
 
         self.branch2 = nn.Sequential(
-            nn.Conv2d(inp if (self.stride == 2) else branch_features, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(
+                inp if (self.stride == 2) else branch_features,
+                branch_features,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            ),
             nn.BatchNorm2d(branch_features),
             nn.ReLU(inplace=True),
-
-            nn.Conv2d(branch_features, branch_features, kernel_size=3, stride=self.stride, padding=1, groups=branch_features),
+            nn.Conv2d(
+                branch_features, branch_features, kernel_size=3, stride=self.stride, padding=1, groups=branch_features
+            ),
             nn.BatchNorm2d(branch_features),
-
             nn.Conv2d(branch_features, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(branch_features),
             nn.ReLU(inplace=True),
