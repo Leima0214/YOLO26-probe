@@ -1,12 +1,26 @@
 #详细改进流程和操作，请关注B站博主：AI学术叫叫兽  持续更新哦
 
-
 import torch
 import torch.nn as nn
-from mmcv.cnn import ConvModule, caffe2_xavier_init, constant_init
-#详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
-
+from torch.nn.init import constant_, xavier_uniform_
 from mmcv.cnn import ConvModule
+
+
+def caffe2_xavier_init(module, **kwargs):
+    """Replace mmcv.cnn.caffe2_xavier_init with pure torch.nn.init.xavier_uniform_. Compatible with mmcv-lite 2.x."""
+    if hasattr(module, "weight") and module.weight is not None:
+        xavier_uniform_(module.weight)
+    if hasattr(module, "bias") and module.bias is not None:
+        module.bias.data.zero_()
+
+
+def constant_init(module, val, bias=0):
+    """Replace mmcv.cnn.constant_init with pure torch.nn.init.constant_. Compatible with mmcv-lite 2.x."""
+    if hasattr(module, "weight") and module.weight is not None:
+        constant_(module.weight, val)
+    if hasattr(module, "bias") and module.bias is not None:
+        constant_(module.bias, bias)
+
 #详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
  
 class ContextAggregation(nn.Module):

@@ -71,24 +71,72 @@ from ultralytics.nn.modules import (
     YOLOESegment26,
     v10Detect,
 )
-from timm.models.layers import SqueezeExcite
- 
 from typing import Optional, Union, Sequence
-
 
 from torch.nn.modules.conv import _ConvNd
 from torch.nn.modules.utils import _pair
 from torch.nn.parameter import Parameter
 import functools
 from torch.nn.modules.batchnorm import _BatchNorm
-from mmcv.cnn import ConvModule, build_norm_layer
-#from mmcv.cnn.bricks import DropPath
-from mmengine.model import BaseModule, constant_init
-from mmengine.model.weight_init import trunc_normal_init, normal_init
-from mmengine.logging import MMLogger
+
+# -- mmcv/mmengine compat: removed unused imports (ConvModule, build_norm_layer, BaseModule,
+#    constant_init, trunc_normal_init, normal_init, MMLogger). Local fallback definitions for
+#    constant_init / normal_init are already provided later in this file. --
+
+# -- timm SqueezeExcite fallback --------------------------------------------------
+try:
+    from timm.models.layers import SqueezeExcite
+except ImportError:
+
+    class SqueezeExcite(nn.Module):
+        """Pure-PyTorch Squeeze-and-Excitation block, drop-in replacement for timm's version."""
+
+        def __init__(self, in_chs, rd_ratio=0.25, rd_channels=None, act_layer=nn.ReLU, gate_layer=nn.Sigmoid):
+            super().__init__()
+            rd_channels = rd_channels or max(1, int(in_chs * rd_ratio))
+            self.fc1 = nn.Conv2d(in_chs, rd_channels, 1)
+            self.act = act_layer(inplace=True) if act_layer == nn.ReLU else act_layer()
+            self.fc2 = nn.Conv2d(rd_channels, in_chs, 1)
+            self.gate = gate_layer()
+
+        def forward(self, x):
+            x_se = x.mean((2, 3), keepdim=True)
+            x_se = self.fc1(x_se)
+            x_se = self.act(x_se)
+            x_se = self.fc2(x_se)
+            return x * self.gate(x_se)
 
 
-from einops import rearrange
+# -- einops rearrange fallback ----------------------------------------------------
+try:
+    from einops import rearrange
+except ImportError:
+
+    def rearrange(tensor, pattern, **axes_lengths):
+        """Minimal einops.rearrange fallback for commonly used patterns."""
+        # Pattern: 'b c h w -> b (h w) c'
+        if pattern == "b c h w -> b (h w) c":
+            return tensor.flatten(2).transpose(1, 2)
+        # Pattern: 'b (h w) c -> b c h w' (needs h=, w=)
+        if pattern == "b (h w) c -> b c h w":
+            h, w = axes_lengths["h"], axes_lengths["w"]
+            return tensor.transpose(1, 2).reshape(tensor.size(0), -1, h, w)
+        # Pattern: 'b (head c) h w -> b head c (h w)'
+        if pattern == "b (head c) h w -> b head c (h w)":
+            head = axes_lengths["head"]
+            B, HC, H, W = tensor.shape
+            C = HC // head
+            return tensor.view(B, head, C, H, W).flatten(3)
+        # Pattern: 'b head c (h w) -> b (head c) h w'
+        if pattern == "b head c (h w) -> b (head c) h w":
+            head = axes_lengths["head"]
+            h, w = axes_lengths["h"], axes_lengths["w"]
+            B, Hd, C, HW = tensor.shape
+            return tensor.view(B, Hd, C, h, w).reshape(B, Hd * C, h, w)
+        raise NotImplementedError(
+            f"rearrange fallback does not support pattern '{pattern}'. "
+            f"Install einops: pip install einops"
+        )
 import os
 sys.path.append(os.getcwd())
  

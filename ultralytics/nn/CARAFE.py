@@ -1,16 +1,7 @@
-import contextlib
-from copy import deepcopy
-from pathlib import Path
-from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C2f, C3Ghost, C3x,Classify, Concat, Conv, Conv2, ConvTranspose, Detect, DWConv,DWConvTranspose2d,Focus, GhostBottleneck, GhostConv, HGBlock, HGStem, Pose, RepC3, RepConv,RTDETRDecoder, Segment,LightConv, RepConv, SpatialAttention)
-import torch.nn.functional as F
-from torch.nn import Softmax
-
 import torch
 import torch.nn as nn
-from mmcv.cnn import ConvModule, caffe2_xavier_init, constant_init
-#详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
-
-from mmcv.cnn import ConvModule
+import torch.nn.functional as F
+from torch.nn import Softmax
 
 class CARAFE(nn.Module):     
     #CARAFE: Content-Aware ReAssembly of FEatures       https://arxiv.org/pdf/1905.02188.pdf

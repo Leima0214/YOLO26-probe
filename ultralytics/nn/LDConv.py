@@ -1,10 +1,6 @@
 import math
 import torch
 import torch.nn as nn
-from einops import rearrange
-import contextlib
-from copy import deepcopy
-from pathlib import Path
 
 class LDConv(nn.Module):
     def __init__(self, inc, outc, num_param, stride=1, bias=None):
@@ -140,5 +136,6 @@ class LDConv(nn.Module):
         # x_offset = x_offset.permute(0,1,4,2,3), then, x_offset.view(b,c×num_param,h,w)  finally, Conv2d(c×num_param,c_out, kernel_size =1,stride=1,bias= False)
         # using the column conv as follow， then, Conv2d(inc, outc, kernel_size=(num_param, 1), stride=(num_param, 1), bias=bias)
 
-        x_offset = rearrange(x_offset, 'b c h w n -> b c (h n) w')
+        b, c, h, w, n = x_offset.size()
+        x_offset = x_offset.permute(0, 1, 2, 4, 3).contiguous().view(b, c, h * n, w)
         return x_offset

@@ -1,10 +1,59 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
- 
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C2f, C3Ghost, C3x,Classify, Concat, Conv, Conv2, ConvTranspose, Detect, DWConv,DWConvTranspose2d,Focus, GhostBottleneck, GhostConv, HGBlock, HGStem, Pose, RepC3, RepConv,RTDETRDecoder, Segment,LightConv, RepConv, SpatialAttention) 
-  #详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+
+try:
+    from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+except ImportError:
+    # Fallbacks when timm.models.layers is not available (timm-lite / no-timm envs).
+
+    def to_2tuple(x):
+        """Convert scalar to 2-tuple if needed."""
+        return x if isinstance(x, (tuple, list)) and len(x) == 2 else (x, x)
+
+    def trunc_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
+        """Truncated normal initializer. Falls back to uniform if scipy unavailable."""
+        try:
+            from scipy.stats import truncnorm as _truncnorm
+        except ImportError:
+            return torch.nn.init.normal_(tensor, mean, std)
+
+        def _no_grad_trunc_normal_(tensor, mean, std, a, b):
+            def norm_cdf(x):
+                return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
+
+            with torch.no_grad():
+                l = norm_cdf((a - mean) / std)
+                u = norm_cdf((b - mean) / std)
+                tensor.uniform_(2 * l - 1, 2 * u - 1)
+                tensor.erfinv_()
+                tensor.mul_(std * math.sqrt(2.0))
+                tensor.add_(mean)
+                tensor.clamp_(min=a, max=b)
+            return tensor
+
+        return _no_grad_trunc_normal_(tensor, mean, std, a, b)
+
+    class DropPath(nn.Module):
+        """Stochastic Depth / DropPath layer. Completely drops samples with probability drop_prob."""
+
+        def __init__(self, drop_prob=0.0):
+            super().__init__()
+            self.drop_prob = drop_prob
+
+        def forward(self, x):
+            if self.drop_prob == 0.0 or not self.training:
+                return x
+            keep_prob = 1.0 - self.drop_prob
+            shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+            random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
+            random_tensor.floor_()
+            return x.div(keep_prob) * random_tensor
+
+from ultralytics.nn.modules import Conv
+
+ #详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
 class WindowAttention(nn.Module):
  
     def __init__(self, dim, window_size, num_heads, qkv_bias=True, qk_scale=None, attn_drop=0., proj_drop=0.):
