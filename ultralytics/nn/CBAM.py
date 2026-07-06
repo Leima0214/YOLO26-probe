@@ -1,30 +1,28 @@
-#详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
-#详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
-#详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
-import numpy as np
-import torch
-from torch import nn
-
-from torch.nn import init
 # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
 # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
 # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
-import torch
-import torch.nn as nn
+# 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
+# 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
+# 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
 import math
-from einops import rearrange
 
+import torch
+from einops import rearrange
+from torch import nn
 
 # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
 
 
 class AKConv(nn.Module):
     def __init__(self, inc, outc, num_param, stride=1, bias=None):
-        super(AKConv, self).__init__()
+        super().__init__()
         self.num_param = num_param
         self.stride = stride
-        self.conv = nn.Sequential(nn.Conv2d(inc, outc, kernel_size=(num_param, 1), stride=(num_param, 1), bias=bias),
-                                  nn.BatchNorm2d(outc), nn.SiLU())
+        self.conv = nn.Sequential(
+            nn.Conv2d(inc, outc, kernel_size=(num_param, 1), stride=(num_param, 1), bias=bias),
+            nn.BatchNorm2d(outc),
+            nn.SiLU(),
+        )
         self.p_conv = nn.Conv2d(inc, 2 * num_param, kernel_size=3, padding=1, stride=stride)
         nn.init.constant_(self.p_conv.weight, 0)
         self.p_conv.register_full_backward_hook(self._set_lr)
@@ -48,10 +46,12 @@ class AKConv(nn.Module):
         q_lt = p.detach().floor()
         q_rb = q_lt + 1
 
-        q_lt = torch.cat([torch.clamp(q_lt[..., :N], 0, x.size(2) - 1), torch.clamp(q_lt[..., N:], 0, x.size(3) - 1)],
-                         dim=-1).long()
-        q_rb = torch.cat([torch.clamp(q_rb[..., :N], 0, x.size(2) - 1), torch.clamp(q_rb[..., N:], 0, x.size(3) - 1)],
-                         dim=-1).long()
+        q_lt = torch.cat(
+            [torch.clamp(q_lt[..., :N], 0, x.size(2) - 1), torch.clamp(q_lt[..., N:], 0, x.size(3) - 1)], dim=-1
+        ).long()
+        q_rb = torch.cat(
+            [torch.clamp(q_rb[..., :N], 0, x.size(2) - 1), torch.clamp(q_rb[..., N:], 0, x.size(3) - 1)], dim=-1
+        ).long()
         q_lb = torch.cat([q_lt[..., :N], q_rb[..., N:]], dim=-1)
         q_rt = torch.cat([q_rb[..., :N], q_lt[..., N:]], dim=-1)
 
@@ -71,10 +71,12 @@ class AKConv(nn.Module):
         x_q_rt = self._get_x_q(x, q_rt, N)
 
         # bilinear
-        x_offset = g_lt.unsqueeze(dim=1) * x_q_lt + \
-                   g_rb.unsqueeze(dim=1) * x_q_rb + \
-                   g_lb.unsqueeze(dim=1) * x_q_lb + \
-                   g_rt.unsqueeze(dim=1) * x_q_rt
+        x_offset = (
+            g_lt.unsqueeze(dim=1) * x_q_lt
+            + g_rb.unsqueeze(dim=1) * x_q_rb
+            + g_lb.unsqueeze(dim=1) * x_q_lb
+            + g_rt.unsqueeze(dim=1) * x_q_rt
+        )
 
         x_offset = self._reshape_x_offset(x_offset, self.num_param)
         out = self.conv(x_offset)
@@ -86,15 +88,11 @@ class AKConv(nn.Module):
         base_int = round(math.sqrt(self.num_param))
         row_number = self.num_param // base_int
         mod_number = self.num_param % base_int
-        p_n_x, p_n_y = torch.meshgrid(
-            torch.arange(0, row_number),
-            torch.arange(0, base_int))
+        p_n_x, p_n_y = torch.meshgrid(torch.arange(0, row_number), torch.arange(0, base_int))
         p_n_x = torch.flatten(p_n_x)
         p_n_y = torch.flatten(p_n_y)
         if mod_number > 0:
-            mod_p_n_x, mod_p_n_y = torch.meshgrid(
-                torch.arange(row_number, row_number + 1),
-                torch.arange(0, mod_number))
+            mod_p_n_x, mod_p_n_y = torch.meshgrid(torch.arange(row_number, row_number + 1), torch.arange(0, mod_number))
 
             mod_p_n_x = torch.flatten(mod_p_n_x)
             mod_p_n_y = torch.flatten(mod_p_n_y)
@@ -105,8 +103,8 @@ class AKConv(nn.Module):
 
     def _get_p_0(self, h, w, N, dtype):
         p_0_x, p_0_y = torch.meshgrid(
-            torch.arange(0, h * self.stride, self.stride),
-            torch.arange(0, w * self.stride, self.stride))
+            torch.arange(0, h * self.stride, self.stride), torch.arange(0, w * self.stride, self.stride)
+        )
 
         p_0_x = torch.flatten(p_0_x).view(1, 1, h, w).repeat(1, N, 1, 1)
         p_0_y = torch.flatten(p_0_y).view(1, 1, h, w).repeat(1, N, 1, 1)
@@ -142,23 +140,26 @@ class AKConv(nn.Module):
 
     @staticmethod
     def _reshape_x_offset(x_offset, num_param):
-        b, c, h, w, n = x_offset.size()
+        _b, _c, _h, _w, _n = x_offset.size()
         # using Conv3d
         # x_offset = x_offset.permute(0,1,4,2,3), then Conv3d(c,c_out, kernel_size =(num_param,1,1),stride=(num_param,1,1),bias= False)
         # using 1 × 1 Conv
         # x_offset = x_offset.permute(0,1,4,2,3), then, x_offset.view(b,c×num_param,h,w)  finally, Conv2d(c×num_param,c_out, kernel_size =1,stride=1,bias= False)
         # using the column conv as follow， then, Conv2d(inc, outc, kernel_size=(num_param, 1), stride=(num_param, 1), bias=bias)
 
-        x_offset = rearrange(x_offset, 'b c h w n -> b c (h n) w')
+        x_offset = rearrange(x_offset, "b c h w n -> b c (h n) w")
         return x_offset
-    # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
 
     # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
 
     # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
+
+    # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
+
+
 class ChannelAttentionModule(nn.Module):
     def __init__(self, c1, reduction=16):
-        super(ChannelAttentionModule, self).__init__()
+        super().__init__()
         mid_channel = c1 // reduction
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
@@ -166,43 +167,52 @@ class ChannelAttentionModule(nn.Module):
         self.shared_MLP = nn.Sequential(
             nn.Linear(in_features=c1, out_features=mid_channel),
             nn.LeakyReLU(0.1, inplace=True),
-            nn.Linear(in_features=mid_channel, out_features=c1)
+            nn.Linear(in_features=mid_channel, out_features=c1),
         )
         self.act = nn.Sigmoid()
-        #self.act=nn.SiLU()
+        # self.act=nn.SiLU()
+
     def forward(self, x):
-        avgout = self.shared_MLP(self.avg_pool(x).view(x.size(0),-1)).unsqueeze(2).unsqueeze(3)
-        maxout = self.shared_MLP(self.max_pool(x).view(x.size(0),-1)).unsqueeze(2).unsqueeze(3)
+        avgout = self.shared_MLP(self.avg_pool(x).view(x.size(0), -1)).unsqueeze(2).unsqueeze(3)
+        maxout = self.shared_MLP(self.max_pool(x).view(x.size(0), -1)).unsqueeze(2).unsqueeze(3)
         return self.act(avgout + maxout)
-      
-    #详细改进流程和操作，请关注B站博主：AI学术叫叫兽       
+
+    # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
+
+
 class SpatialAttentionModule(nn.Module):
     def __init__(self):
-        super(SpatialAttentionModule, self).__init__()    
-    #详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
-        self.conv2d = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=7, stride=1, padding=3)    
-    #详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
+        super().__init__()
+        # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
+        self.conv2d = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=7, stride=1, padding=3)
+        # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
         self.act = nn.Sigmoid()
+
     def forward(self, x):
         avgout = torch.mean(x, dim=1, keepdim=True)
         maxout, _ = torch.max(x, dim=1, keepdim=True)
         out = torch.cat([avgout, maxout], dim=1)
-        out = self.act(self.conv2d(out))#详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
-        return out    
-    #详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
+        out = self.act(
+            self.conv2d(out)
+        )  # 详细改进流程和操作，请关注B站博主：Ai学术叫叫兽 er,畅享一对一指点迷津，已指导无数家人拿下学术硕果！！！
+        return out
+
+    # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
 
 
 class CBAM(nn.Module):
-    def __init__(self, c1,c2):
-        super(CBAM, self).__init__()
+    def __init__(self, c1, c2):
+        super().__init__()
         self.channel_attention = ChannelAttentionModule(c1)
         self.spatial_attention = SpatialAttentionModule()
         # self.AK=AKConv(inc=256,outc=256,num_param=3)
+
     def forward(self, x):
         # x=self.AK(x)
         out = self.channel_attention(x) * x
         out = self.spatial_attention(out) * out
         return out
-    #详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
-    
-    #详细改进流程和操作，请关注B站博主：AI学术叫叫兽 
+
+    # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
+
+    # 详细改进流程和操作，请关注B站博主：AI学术叫叫兽
