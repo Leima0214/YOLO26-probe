@@ -19,7 +19,7 @@ scales: # model compound scaling constants, i.e. 'model=yolo26n.yaml' will call 
 # YOLO26n backbone
 backbone:
   # [from, repeats, module, args]
-  - [-1, 1, stem, [24, 3, 2]]  # 0-P1/2
+  - [-1, 1, stem, [24, 3, 2]] # 0-P1/2
   - [-1, 2, FusedMBConv, [24, 3, 1, 1, 0]] # 1-P2/4
 
   - [-1, 1, FusedMBConv, [48, 3, 2, 4, 0]]

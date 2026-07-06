@@ -1,73 +1,15 @@
-
-"""
-DEA (DECA and DEPA) module
-"""
+"""DEA (DECA and DEPA) module."""
 
 import torch
 import torch.nn as nn
+
 from ultralytics.nn.modules import (
-    AIFI,
-    C1,
-    C2,
-    C2PSA,
-    C3,
-    C3TR,
-    ELAN1,
-    OBB,
-    PSA,
-    SPP,
-    SPPELAN,
-    SPPF,
-    AConv,
-    ADown,
     Bottleneck,
-    BottleneckCSP,
-    C2f,
-    C2fAttn,
-    C2fCIB,
-    C2fPSA,
-    C3Ghost,
-    C3k2,
-    C3x,LightConv,
-    CBFuse,
-    CBLinear,
-    Classify,
-    Concat,
     Conv,
-    Conv2,
-    DSConv,
-    ConvTranspose,
-    Detect,
-    DWConv,
-    DWConvTranspose2d,
-    Focus,
-    GhostBottleneck,
-    GhostConv,
-    HGBlock,
-    HGStem,
-    ImagePoolingAttn,
-    Index,
-    Pose,
-    RepC3,
-    RepConv,
-    RepNCSPELAN4,
-    RepVGGDW,
-    ResNetLayer,
-    RTDETRDecoder,
-    SCDown,
-    Segment,
-    TorchVision,
-    WorldDetect,
-    v10Detect,
-    A2C2f,
-    HyperACE,
-    DownsampleConv,
-    FullPAD_Tunnel,
-    DSC3k2
 )
 
-class C2f_BiFocus(nn.Module):
 
+class C2f_BiFocus(nn.Module):
     def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):  # ch_in, ch_out, number, shortcut, groups, expansion
         super().__init__()
         self.c = int(c2 * e)  # hidden channels
@@ -104,7 +46,6 @@ class BiFocus(nn.Module):
 
 
 class FocusH(nn.Module):
-
     def __init__(self, c1, c2, kernel=3, stride=1):
         super().__init__()
         self.c2 = c2
@@ -132,7 +73,6 @@ class FocusH(nn.Module):
 
 
 class FocusV(nn.Module):
-
     def __init__(self, c1, c2, kernel=3, stride=1):
         super().__init__()
         self.c2 = c2
@@ -160,9 +100,8 @@ class FocusV(nn.Module):
 
 
 class DepthWiseConv(nn.Module):
-
     def __init__(self, in_channel, out_channel, kernel):
-        super(DepthWiseConv, self).__init__()
+        super().__init__()
         self.depth_conv = Conv(in_channel, in_channel, kernel, 1, 1, in_channel)
         self.point_conv = Conv(in_channel, out_channel, 1, 1, 0, 1)
 
@@ -172,8 +111,9 @@ class DepthWiseConv(nn.Module):
 
         return out
 
+
 class DEA(nn.Module):
-    """x0 --> RGB feature map,  x1 --> IR feature map"""
+    """X0 --> RGB feature map, x1 --> IR feature map."""
 
     def __init__(self, channel=512, kernel_size=80, p_kernel=None, m_kernel=None, reduction=16):
         super().__init__()
@@ -187,7 +127,7 @@ class DEA(nn.Module):
 
 
 class DECA(nn.Module):
-    """x0 --> RGB feature map,  x1 --> IR feature map"""
+    """X0 --> RGB feature map, x1 --> IR feature map."""
 
     def __init__(self, channel=512, kernel_size=80, p_kernel=None, reduction=16):
         super().__init__()
@@ -197,7 +137,7 @@ class DECA(nn.Module):
             nn.Linear(channel, channel // reduction, bias=False),
             nn.ReLU(inplace=True),
             nn.Linear(channel // reduction, channel, bias=False),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
         self.act = nn.Sigmoid()
         self.compress = Conv(channel * 2, channel, 3)
@@ -209,9 +149,15 @@ class DECA(nn.Module):
         self.conv_c1 = nn.Sequential(nn.Conv2d(channel, channel, kernel1, kernel1, 0, groups=channel), nn.SiLU())
         self.conv_c2 = nn.Sequential(nn.Conv2d(channel, channel, kernel2, kernel2, 0, groups=channel), nn.SiLU())
         self.conv_c3 = nn.Sequential(
-            nn.Conv2d(channel, channel, int(self.kernel_size/kernel1/kernel2), int(self.kernel_size/kernel1/kernel2), 0,
-                      groups=channel),
-            nn.SiLU()
+            nn.Conv2d(
+                channel,
+                channel,
+                int(self.kernel_size / kernel1 / kernel2),
+                int(self.kernel_size / kernel1 / kernel2),
+                0,
+                groups=channel,
+            ),
+            nn.SiLU(),
         )
 
     def forward(self, x):
@@ -222,8 +168,11 @@ class DECA(nn.Module):
         w_ir = self.fc(w_ir).view(b, c, 1, 1)
 
         glob_t = self.compress(torch.cat([x[0], x[1]], 1))
-        glob = self.conv_c3(self.conv_c2(self.conv_c1(glob_t))) if min(h, w) >= self.kernel_size else torch.mean(
-                                                                                    glob_t, dim=[2, 3], keepdim=True)
+        glob = (
+            self.conv_c3(self.conv_c2(self.conv_c1(glob_t)))
+            if min(h, w) >= self.kernel_size
+            else torch.mean(glob_t, dim=[2, 3], keepdim=True)
+        )
         result_vi = x[0] * (self.act(w_ir * glob)).expand_as(x[0])
         result_ir = x[1] * (self.act(w_vi * glob)).expand_as(x[1])
 
@@ -231,7 +180,8 @@ class DECA(nn.Module):
 
 
 class DEPA(nn.Module):
-    """x0 --> RGB feature map,  x1 --> IR feature map"""
+    """X0 --> RGB feature map, x1 --> IR feature map."""
+
     def __init__(self, channel=512, m_kernel=None):
         super().__init__()
         self.conv1 = Conv(2, 1, 5)
