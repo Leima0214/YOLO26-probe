@@ -45,6 +45,7 @@ if __name__ == "__main__":
         device=args.device,
         workers=args.workers,
         seed=42,
+                             amp=args.amp,
         project="runs/smoke",
         name=name,
         exist_ok=True,

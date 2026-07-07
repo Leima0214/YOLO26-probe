@@ -50,6 +50,7 @@ if __name__ == "__main__":
         device=args.device,
         workers=args.workers,
         seed=42,
+                             amp=args.amp,
         project=args.project,
         name=args.name,
         resume=args.resume,

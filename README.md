@@ -30,11 +30,26 @@ python scripts/check_dataset.py --data configs/japan7_local.yaml
 
 ### 2. Remote GPU workflow
 
+First, fix the missing AMP asset (bus.jpg excluded by .gitignore):
+
+```bash
+mkdir -p logs ultralytics/assets
+wget -O ultralytics/assets/bus.jpg https://ultralytics.com/images/bus.jpg
+```
+
+Then proceed:
+
 ```bash
 bash scripts/build_all_derived_datasets.sh
 python scripts/check_dataset.py --data configs/japan7_remote.yaml
 python scripts/smoke_test_yolo26n.py --data configs/japan7_remote.yaml --device 0 --batch 8 --workers 4
 python scripts/train_baseline_yolo26n.py --data configs/japan7_remote.yaml --epochs 3 --device 0 --workers 8 --name yolo26n_japan7_e3_test
+```
+
+If `wget` fails, use `--no-amp` to bypass the AMP check:
+
+```bash
+python scripts/smoke_test_yolo26n.py --data configs/japan7_remote.yaml --device 0 --batch 8 --workers 4 --no-amp
 ```
 
 ### 3. Remote GPU: full training

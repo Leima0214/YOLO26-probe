@@ -19,6 +19,7 @@ if __name__ == "__main__":
     args = p.parse_args()
     print(f"Training: {args.name} | Model: yolov8n.pt | Data: {args.data} | Epochs: {args.epochs} | Device: {args.device}")
     YOLO("yolov8n.pt").train(data=args.data, epochs=args.epochs, imgsz=args.imgsz, batch=args.batch,
-                             device=args.device, workers=args.workers, seed=42, project=args.project,
+                             device=args.device, workers=args.workers, seed=42,
+                             amp=args.amp, project=args.project,
                              name=args.name, resume=args.resume)
     print(f"Done. Results in {args.project}/{args.name}/")

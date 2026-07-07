@@ -40,5 +40,6 @@ if __name__ == "__main__":
         print(f"{'='*60}\n")
         YOLO(weights).train(data=args.data, epochs=args.epochs, imgsz=args.imgsz, batch=args.batch,
                             device=args.device, workers=args.workers, seed=42,
+                             amp=args.amp,
                             project="runs/baseline", name=name)
     print(f"\nAll {len(BASELINES)} baselines complete.")
