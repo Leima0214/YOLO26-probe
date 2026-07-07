@@ -3,13 +3,13 @@
 Train YOLO26n baseline on Japan domain.
 
 Usage (local CPU):
-    python scripts/train_baseline_yolo26n.py --data configs/japan_local.yaml --device cpu
+    python scripts/train_baseline_yolo26n.py --data configs/japan7_local.yaml --device cpu
 
 Usage (remote GPU — 3 epoch pilot):
-    python scripts/train_baseline_yolo26n.py --data configs/japan_remote.yaml --epochs 3 --imgsz 640 --batch 16 --device 0 --workers 8 --name yolo26n_japan_e3_test
+    python scripts/train_baseline_yolo26n.py --data configs/japan7_remote.yaml --epochs 3 --imgsz 640 --batch 16 --device 0 --workers 8 --name yolo26n_japan_e3_test
 
 Usage (remote GPU — full):
-    python scripts/train_baseline_yolo26n.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+    python scripts/train_baseline_yolo26n.py --data configs/japan7_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
 """
 
 import argparse
@@ -21,14 +21,14 @@ from ultralytics import YOLO
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train YOLO26n baseline")
-    parser.add_argument("--data", default="configs/japan_local.yaml")
+    parser.add_argument("--data", default="configs/japan7_local.yaml")
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--batch", type=int, default=16)
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--workers", type=int, default=0)
     parser.add_argument("--project", default="runs/baseline")
-    parser.add_argument("--name", default="yolo26n_japan_e100_img640_seed42")
+    parser.add_argument("--name", default="yolo26n_japan7_e100_img640_seed42")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 

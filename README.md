@@ -2,56 +2,52 @@
 
 > Branch: `baseline/japan-baseline-engineering` | Based on Ultralytics YOLO v8.4.2
 
-## Dataset
+## Dataset Protocols
 
-**Japan single-domain** (primary).
+The raw data is labeled with 10 classes, but cross-domain class distribution is highly unbalanced. We define two protocols:
 
-- **Local path**: `F:\deeplearning\YOLO26-probe\datasets\japan_yolo`
-- **Remote path**: `/yolo26-probe/japan_yolo`
-- Datasets are **NOT committed to Git** (see `.gitignore`).
+| Protocol | nc | Classes | Purpose |
+| --- | ---: | --- | --- |
+| **Japan7** | 7 | D00 D10 D20 D40 D43 D44 D50 | Paper 1: Japan single-domain baseline |
+| **Common4** | 4 | D00 D10 D20 D40 | Paper 2: cross-domain (4-country common) |
 
-### ⚠️ Before training: confirm class count
+Full rationale and mapping tables in [`experiments/dataset_protocol.md`](experiments/dataset_protocol.md).
 
-The dataset may be 5-class or 10-class. Always run `check_dataset.py` before training:
+Derived datasets are generated from raw data by `scripts/build_remapped_yolo_dataset.py`.
 
-```bash
-# Local
-python scripts/check_dataset.py --data configs/japan_local.yaml
-
-# Remote GPU
-python scripts/check_dataset.py --data configs/japan_remote.yaml
-```
-
-If `check_dataset` reports out-of-range class IDs, update `nc` and `names` in the config YAML.
+- **Local**: `F:/deeplearning/YOLO26-probe/datasets_derived/`
+- **Remote**: `/yolo26-probe/derived/`
+- Datasets are **NOT committed to Git**.
 
 ## Quick start
 
-### 1. Local smoke test (CPU, 1 epoch, imgsz=320)
+### 1. Build derived datasets (local)
 
 ```bash
-python scripts/check_dataset.py --data configs/japan_local.yaml
-python scripts/smoke_test_yolo26n.py --data configs/japan_local.yaml --device cpu
+python scripts/build_remapped_yolo_dataset.py --src datasets --dst datasets_derived/japan7 --mapping configs/mappings/japan7.yaml --mode copy
+python scripts/check_dataset.py --data configs/japan7_local.yaml
 ```
 
-### 2. Remote GPU: check + smoke + 3-epoch pilot
+### 2. Remote GPU workflow
 
 ```bash
-python scripts/check_dataset.py --data configs/japan_remote.yaml
-python scripts/smoke_test_yolo26n.py --data configs/japan_remote.yaml --device 0 --batch 8 --workers 4
-python scripts/train_baseline_yolo26n.py --data configs/japan_remote.yaml --epochs 3 --imgsz 640 --batch 16 --device 0 --workers 8 --name yolo26n_japan_e3_test
+bash scripts/build_all_derived_datasets.sh
+python scripts/check_dataset.py --data configs/japan7_remote.yaml
+python scripts/smoke_test_yolo26n.py --data configs/japan7_remote.yaml --device 0 --batch 8 --workers 4
+python scripts/train_baseline_yolo26n.py --data configs/japan7_remote.yaml --epochs 3 --device 0 --workers 8 --name yolo26n_japan7_e3_test
 ```
 
 ### 3. Remote GPU: full training
 
 ```bash
 # Single model
-python scripts/train_baseline_yolo26n.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
-python scripts/train_baseline_yolo26s.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
-python scripts/train_baseline_yolo11n.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
-python scripts/train_baseline_yolov8n.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+python scripts/train_baseline_yolo26n.py --data configs/japan7_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+python scripts/train_baseline_yolo26s.py --data configs/japan7_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+python scripts/train_baseline_yolo11n.py --data configs/japan7_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+python scripts/train_baseline_yolov8n.py --data configs/japan7_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
 
-# All 4 sequentially (YOLOv8n → YOLO11n → YOLO26n → YOLO26s)
-python scripts/train_baseline_all.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+# All 4 sequentially
+python scripts/train_baseline_all.py --data configs/japan7_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
 ```
 
 ### ⚠️ Do NOT run `train_baseline_all.py` first on remote GPU
@@ -66,12 +62,12 @@ python scripts/collect_results.py
 
 ## Experiment plan
 
-| Paper | Config | Description |
-| --- | --- | --- |
-| Paper 1 | `configs/japan_local.yaml` / `japan_remote.yaml` | Japan single-domain baseline |
-| Paper 2 | `configs/cross_domain/` | Cross-domain (future) |
+| Paper | Protocol | Config | Description |
+| --- | --- | --- | --- |
+| Paper 1 | Japan7 (nc=7) | `configs/japan7_local.yaml` / `japan7_remote.yaml` | Japan single-domain baseline |
+| Paper 2 | Common4 (nc=4) | `configs/common4_*_*.yaml` | Cross-domain (4-country common) |
 
-`configs/all_local.yaml` (mixed 4-domain) is kept as backup only.
+Full protocol details: [`experiments/dataset_protocol.md`](experiments/dataset_protocol.md)
 
 ---
 

@@ -206,6 +206,7 @@ results.csv
 
 # Project specific — YOLO26-probe
 datasets/
+datasets_derived/
 runs/
 *.pt
 *.onnx

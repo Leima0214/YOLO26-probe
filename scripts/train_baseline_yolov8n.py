@@ -7,14 +7,14 @@ from ultralytics import YOLO
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--data", default="configs/japan_local.yaml")
+    p.add_argument("--data", default="configs/japan7_local.yaml")
     p.add_argument("--epochs", type=int, default=100)
     p.add_argument("--imgsz", type=int, default=640)
     p.add_argument("--batch", type=int, default=16)
     p.add_argument("--device", default="cpu")
     p.add_argument("--workers", type=int, default=0)
     p.add_argument("--project", default="runs/baseline")
-    p.add_argument("--name", default="yolov8n_japan_e100_img640_seed42")
+    p.add_argument("--name", default="yolov8n_japan7_e100_img640_seed42")
     p.add_argument("--resume", action="store_true")
     args = p.parse_args()
     print(f"Training: {args.name} | Model: yolov8n.pt | Data: {args.data} | Epochs: {args.epochs} | Device: {args.device}")

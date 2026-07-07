@@ -3,10 +3,10 @@
 Smoke test — 1-epoch training to verify the pipeline works end-to-end.
 
 Usage (local CPU):
-    python scripts/smoke_test_yolo26n.py --data configs/japan_local.yaml --device cpu
+    python scripts/smoke_test_yolo26n.py --data configs/japan7_local.yaml --device cpu
 
 Usage (remote GPU):
-    python scripts/smoke_test_yolo26n.py --data configs/japan_remote.yaml --device 0 --batch 8 --workers 4
+    python scripts/smoke_test_yolo26n.py --data configs/japan7_remote.yaml --device 0 --batch 8 --workers 4
 """
 
 import argparse
@@ -18,7 +18,7 @@ from ultralytics import YOLO
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="YOLO26n smoke test (1 epoch)")
-    parser.add_argument("--data", default="configs/japan_local.yaml")
+    parser.add_argument("--data", default="configs/japan7_local.yaml")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--batch", type=int, default=2)
     parser.add_argument("--workers", type=int, default=0)
@@ -26,9 +26,9 @@ if __name__ == "__main__":
 
     # Determine name from data path
     if "remote" in args.data:
-        name = "yolo26n_japan_smoke_remote"
+        name = "yolo26n_japan7_smoke_remote"
     else:
-        name = "yolo26n_japan_smoke_local"
+        name = "yolo26n_japan7_smoke_local"
 
     print(f"Smoke test: {name}")
     print(f"  Data:    {args.data}")

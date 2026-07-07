@@ -4,12 +4,12 @@ Train all 4 baselines sequentially (YOLOv8n → YOLO11n → YOLO26n → YOLO26s)
 
 IMPORTANT: Do NOT run this first on a remote GPU.
 Always run smoke test + 3-epoch pilot first:
-    1. python scripts/check_dataset.py --data configs/japan_remote.yaml
-    2. python scripts/smoke_test_yolo26n.py --data configs/japan_remote.yaml --device 0 --batch 8 --workers 4
-    3. python scripts/train_baseline_yolo26n.py --data configs/japan_remote.yaml --epochs 3 --device 0 --workers 8 --name yolo26n_japan_e3_test
+    1. python scripts/check_dataset.py --data configs/japan7_remote.yaml
+    2. python scripts/smoke_test_yolo26n.py --data configs/japan7_remote.yaml --device 0 --batch 8 --workers 4
+    3. python scripts/train_baseline_yolo26n.py --data configs/japan7_remote.yaml --epochs 3 --device 0 --workers 8 --name yolo26n_japan_e3_test
 
 Usage (remote GPU):
-    python scripts/train_baseline_all.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+    python scripts/train_baseline_all.py --data configs/japan7_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
 """
 
 import argparse, sys
@@ -18,15 +18,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ultralytics import YOLO
 
 BASELINES = [
-    ("yolov8n.pt", "yolov8n_japan_e100_img640_seed42"),
-    ("yolo11n.pt", "yolo11n_japan_e100_img640_seed42"),
-    ("yolo26n.pt", "yolo26n_japan_e100_img640_seed42"),
-    ("yolo26s.pt", "yolo26s_japan_e100_img640_seed42"),
+    ("yolov8n.pt", "yolov8n_japan7_e100_img640_seed42"),
+    ("yolo11n.pt", "yolo11n_japan7_e100_img640_seed42"),
+    ("yolo26n.pt", "yolo26n_japan7_e100_img640_seed42"),
+    ("yolo26s.pt", "yolo26s_japan7_e100_img640_seed42"),
 ]
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--data", default="configs/japan_local.yaml")
+    p.add_argument("--data", default="configs/japan7_local.yaml")
     p.add_argument("--epochs", type=int, default=100)
     p.add_argument("--imgsz", type=int, default=640)
     p.add_argument("--batch", type=int, default=16)
