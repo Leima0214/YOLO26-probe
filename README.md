@@ -68,6 +68,19 @@ python scripts/train_baseline_all.py --data configs/japan7_remote.yaml --epochs 
 ### ⚠️ Do NOT run `train_baseline_all.py` first on remote GPU
 Always run smoke test and 3-epoch pilot for YOLO26n first.
 
+## Japan7 Baseline Results (Round 1)
+
+Training: epochs=100, imgsz=640, batch=32, seed=42, device=0
+
+| Model | P | R | mAP50 | mAP50-95 | Params | FLOPs |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| YOLOv8n | 0.647 | 0.606 | 0.642 | **0.353** | 3.007M | 8.1G |
+| YOLO11n | 0.639 | 0.616 | 0.642 | 0.349 | 2.584M | 6.3G |
+| YOLO26s | 0.678 | 0.591 | 0.630 | 0.347 | 9.468M | 20.5G |
+| YOLO26n | 0.644 | 0.597 | 0.623 | 0.341 | 2.376M | 5.2G |
+
+**Key**: All models struggle on D00/D10. D43/D50 are saturated. Details in [`experiments/japan7_baseline_20260707/`](experiments/japan7_baseline_20260707/).
+
 ## Collect results
 
 ```bash
