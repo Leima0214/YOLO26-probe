@@ -1,3 +1,80 @@
+# YOLO26-probe — Japan Road Damage Baseline
+
+> Branch: `baseline/japan-baseline-engineering` | Based on Ultralytics YOLO v8.4.2
+
+## Dataset
+
+**Japan single-domain** (primary).
+
+- **Local path**: `F:\deeplearning\YOLO26-probe\datasets\japan_yolo`
+- **Remote path**: `/yolo26-probe/japan_yolo`
+- Datasets are **NOT committed to Git** (see `.gitignore`).
+
+### ⚠️ Before training: confirm class count
+
+The dataset may be 5-class or 10-class. Always run `check_dataset.py` before training:
+
+```bash
+# Local
+python scripts/check_dataset.py --data configs/japan_local.yaml
+
+# Remote GPU
+python scripts/check_dataset.py --data configs/japan_remote.yaml
+```
+
+If `check_dataset` reports out-of-range class IDs, update `nc` and `names` in the config YAML.
+
+## Quick start
+
+### 1. Local smoke test (CPU, 1 epoch, imgsz=320)
+
+```bash
+python scripts/check_dataset.py --data configs/japan_local.yaml
+python scripts/smoke_test_yolo26n.py --data configs/japan_local.yaml --device cpu
+```
+
+### 2. Remote GPU: check + smoke + 3-epoch pilot
+
+```bash
+python scripts/check_dataset.py --data configs/japan_remote.yaml
+python scripts/smoke_test_yolo26n.py --data configs/japan_remote.yaml --device 0 --batch 8 --workers 4
+python scripts/train_baseline_yolo26n.py --data configs/japan_remote.yaml --epochs 3 --imgsz 640 --batch 16 --device 0 --workers 8 --name yolo26n_japan_e3_test
+```
+
+### 3. Remote GPU: full training
+
+```bash
+# Single model
+python scripts/train_baseline_yolo26n.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+python scripts/train_baseline_yolo26s.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+python scripts/train_baseline_yolo11n.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+python scripts/train_baseline_yolov8n.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+
+# All 4 sequentially (YOLOv8n → YOLO11n → YOLO26n → YOLO26s)
+python scripts/train_baseline_all.py --data configs/japan_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
+```
+
+### ⚠️ Do NOT run `train_baseline_all.py` first on remote GPU
+Always run smoke test and 3-epoch pilot for YOLO26n first.
+
+## Collect results
+
+```bash
+python scripts/collect_results.py
+# Output: experiments/baseline_table.md
+```
+
+## Experiment plan
+
+| Paper | Config | Description |
+| --- | --- | --- |
+| Paper 1 | `configs/japan_local.yaml` / `japan_remote.yaml` | Japan single-domain baseline |
+| Paper 2 | `configs/cross_domain/` | Cross-domain (future) |
+
+`configs/all_local.yaml` (mixed 4-domain) is kept as backup only.
+
+---
+
 <div align="center">
   <p>
     <a href="https://www.ultralytics.com/events/yolovision?utm_source=github&utm_medium=org&utm_campaign=yv25_event" target="_blank">

@@ -203,3 +203,16 @@ calibration_*.npy
 # Training logs
 args.yaml
 results.csv
+
+# Project specific — YOLO26-probe
+datasets/
+runs/
+*.pt
+*.onnx
+*.engine
+*.tflite
+logs/*
+!logs/.gitkeep
+.venv/
+wandb/
+
