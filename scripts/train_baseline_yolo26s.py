@@ -12,6 +12,8 @@ if __name__ == "__main__":
     p.add_argument("--imgsz", type=int, default=640)
     p.add_argument("--batch", type=int, default=16)
     p.add_argument("--device", default="cpu")
+    p.add_argument("--amp", dest="amp", action="store_true", default=True)
+    p.add_argument("--no-amp", dest="amp", action="store_false")
     p.add_argument("--workers", type=int, default=0)
     p.add_argument("--project", default="runs/baseline")
     p.add_argument("--name", default="yolo26s_japan7_e100_img640_seed42")

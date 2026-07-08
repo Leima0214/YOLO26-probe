@@ -21,6 +21,8 @@ if __name__ == "__main__":
     parser.add_argument("--data", default="configs/japan7_local.yaml")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--batch", type=int, default=2)
+    parser.add_argument("--amp", dest="amp", action="store_true", default=True)
+    parser.add_argument("--no-amp", dest="amp", action="store_false")
     parser.add_argument("--workers", type=int, default=0)
     args = parser.parse_args()
 
