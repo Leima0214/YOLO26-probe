@@ -11,8 +11,8 @@ Checks:
   - out-of-range class IDs vs declared nc
 
 Usage:
-    python scripts/check_dataset.py --data configs/japan_local.yaml
-    python scripts/check_dataset.py --data configs/japan_remote.yaml
+    python scripts/check_dataset.py --data configs/japan7_local.yaml
+    python scripts/check_dataset.py --data configs/japan7_remote.yaml
 """
 
 import argparse

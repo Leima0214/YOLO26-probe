@@ -14,10 +14,10 @@ RESULTS_DIR = Path("runs/baseline")
 OUTPUT = Path("experiments/baseline_table.md")
 
 EXPECTED = {
-    "yolov8n_japan_e100_img640_seed42": ("YOLOv8n", "yolov8n.pt"),
-    "yolo11n_japan_e100_img640_seed42": ("YOLO11n", "yolo11n.pt"),
-    "yolo26n_japan_e100_img640_seed42": ("YOLO26n", "yolo26n.pt"),
-    "yolo26s_japan_e100_img640_seed42": ("YOLO26s", "yolo26s.pt"),
+    "yolov8n_japan7_e100_img640_b32_seed422": ("YOLOv8n", "yolov8n.pt"),
+    "yolo11n_japan7_e100_img640_b32_seed42":  ("YOLO11n", "yolo11n.pt"),
+    "yolo26n_japan7_e100_img640_b32_seed42":  ("YOLO26n", "yolo26n.pt"),
+    "yolo26s_japan7_e100_img640_b32_seed42":  ("YOLO26s", "yolo26s.pt"),
 }
 
 

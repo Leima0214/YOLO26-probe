@@ -6,7 +6,7 @@ IMPORTANT: Do NOT run this first on a remote GPU.
 Always run smoke test + 3-epoch pilot first:
     1. python scripts/check_dataset.py --data configs/japan7_remote.yaml
     2. python scripts/smoke_test_yolo26n.py --data configs/japan7_remote.yaml --device 0 --batch 8 --workers 4
-    3. python scripts/train_baseline_yolo26n.py --data configs/japan7_remote.yaml --epochs 3 --device 0 --workers 8 --name yolo26n_japan_e3_test
+    3. python scripts/train_baseline_yolo26n.py --data configs/japan7_remote.yaml --epochs 3 --device 0 --workers 8 --name yolo26n_japan7_e3_test
 
 Usage (remote GPU):
     python scripts/train_baseline_all.py --data configs/japan7_remote.yaml --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8
@@ -31,6 +31,8 @@ if __name__ == "__main__":
     p.add_argument("--imgsz", type=int, default=640)
     p.add_argument("--batch", type=int, default=16)
     p.add_argument("--device", default="cpu")
+    p.add_argument("--amp", dest="amp", action="store_true", default=True)
+    p.add_argument("--no-amp", dest="amp", action="store_false")
     p.add_argument("--workers", type=int, default=0)
     args = p.parse_args()
 
